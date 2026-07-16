@@ -94,6 +94,17 @@ input,select{font-family:inherit}
 /* combo + reactions tables */
 .tbl-card{background:#161d26;border:1px solid var(--panel-line);border-radius:10px;padding:13px 15px;margin-bottom:20px;overflow-x:auto}
 .tbl-card h4{margin:0 0 9px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--steel-lt)}
+.tbl-card.xfer{background:linear-gradient(180deg,#182533,#141d28);border-color:var(--blueprint)}
+.xfer-sub{font-size:12px;color:var(--muted);margin-bottom:11px;line-height:1.45}
+.xfer-btns{display:flex;flex-wrap:wrap;gap:10px}
+.xfer-btn{flex:1 1 200px;text-align:left;background:#0f151d;border:1px solid var(--blueprint);color:#e8eef4;
+  padding:11px 13px;border-radius:8px;display:flex;flex-direction:column;gap:3px;transition:.14s;cursor:pointer}
+.xfer-btn:hover{background:var(--blueprint);border-color:var(--steel-lt)}
+.xfer-btn b{font-size:13px;font-weight:700}
+.xfer-btn span{font-family:var(--mono);font-size:11px;color:var(--steel-lt)}
+.xfer-btn:hover span{color:#dfeaf4}
+.xfer-note{font-size:11.5px;color:var(--amber);background:#221c12;border:1px solid #47391f;
+  border-radius:7px;padding:8px 11px;margin-bottom:16px;line-height:1.5}
 table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
 .ctab th{font-family:var(--sans);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
   text-align:right;padding:5px 8px;border-bottom:1px solid var(--panel-line);font-weight:600}
@@ -177,9 +188,12 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
       <div class="seg" id="segMode">
         <button data-mode="ss" class="on">Simply supported</button>
         <button data-mode="ff">Fixed ends</button>
+        <button data-mode="cant">Cantilever</button>
         <button data-mode="column">Column</button>
         <button data-mode="portal">Portal frame</button>
         <button data-mode="truss">Truss (attic)</button>
+        <button data-mode="base">Base plate</button>
+        <button data-mode="conn">Moment conn.</button>
         <button data-mode="direct">Direct check</button>
       </div>
       <div class="hint" id="modeHint"></div>
@@ -289,6 +303,13 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
       <div class="subhead">Pre‑combined (already factored)</div>
       <div class="field"><label>Combined UDL, added as its own case ×1.0 (kN/m)</label>
         <input class="mono" id="xUDL" type="number" value="0" step="0.1"/></div>
+      <div id="rowTip" style="display:none">
+        <div class="subhead">Point loads at cantilever tip</div>
+        <div class="grid2">
+          <div class="field"><label>Dead P,G (kN)</label><input class="mono" id="PGt" type="number" value="0" step="0.5"/></div>
+          <div class="field"><label>Live P,Q (kN)</label><input class="mono" id="PQt" type="number" value="0" step="0.5"/></div>
+        </div>
+      </div>
       <div class="hint">UDL = area load × width s + direct UDL (+ self‑weight). The pre‑combined UDL is treated as already‑factored and checked as a separate combination.</div>
     </div>
 
@@ -342,14 +363,82 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
         <div class="field"><label id="lltBotLabel">Bottom flange restraint (m, 0 = span)</label><input class="mono" id="LLTbot" type="number" value="0" step="0.1"/></div>
       </div>
       <div class="grid2" id="rowK" style="display:none">
-        <div class="field"><label>K in‑plane (LE = K·h)</label><input class="mono" id="Kin" type="number" value="1.5" step="0.05"/></div>
-        <div class="field"><label>K out‑of‑plane</label><input class="mono" id="Kout" type="number" value="1.0" step="0.05"/></div>
+        <div class="field" id="fKin"><label id="kinLabel">K in‑plane (LE = K·h)</label><input class="mono" id="Kin" type="number" value="1.5" step="0.05"/></div>
+        <div class="field" id="fKout"><label>K out‑of‑plane</label><input class="mono" id="Kout" type="number" value="1.0" step="0.05"/></div>
       </div>
       <div class="grid2" id="rowChord" style="display:none">
         <div class="field"><label>Top chord restraint o/p (m)</label><input class="mono" id="chordRestr" type="number" value="1.5" step="0.1"/></div>
         <div class="field"><label>Bottom chord restraint (m)</label><input class="mono" id="botRestr" type="number" value="3.0" step="0.1"/></div>
       </div>
       <div class="hint" id="memberHint"></div>
+    </div>
+
+    <div class="group" id="grpBolt" style="display:none">
+      <h3><span class="num">5</span> Bolts & weld</h3>
+      <div class="grid2">
+        <div class="field"><label>Bolt size</label>
+          <select id="boltSize"><option>M12</option><option>M16</option><option selected>M20</option><option>M24</option><option>M30</option><option>M36</option></select></div>
+        <div class="field"><label>Bolt grade</label>
+          <select id="boltGrade"><option>4.6</option><option selected>8.8</option></select></div>
+      </div>
+      <div class="field"><label>Fillet weld leg s (mm)</label><input class="mono" id="weldS" type="number" value="6" step="1"/></div>
+    </div>
+
+    <div class="group" id="grpBase" style="display:none">
+      <h3><span class="num">6</span> Base plate & anchors</h3>
+      <div class="grid3">
+        <div class="field"><label>Plate B (mm)</label><input class="mono" id="bpB" type="number" value="350" step="10"/></div>
+        <div class="field"><label>Plate D (mm)</label><input class="mono" id="bpD" type="number" value="350" step="10"/></div>
+        <div class="field"><label>Plate t (mm)</label><input class="mono" id="bpT" type="number" value="20" step="1"/></div>
+      </div>
+      <div class="field"><label id="fckLabel">Concrete fcu (N/mm²)</label><input class="mono" id="fck" type="number" value="25" step="5"/></div>
+      <div class="grid3">
+        <div class="field"><label>Bolts per line</label><input class="mono" id="nLine" type="number" value="2" min="1" step="1"/></div>
+        <div class="field"><label>Edge dist e (mm)</label><input class="mono" id="eBolt" type="number" value="50" step="5"/></div>
+        <div class="field"><label>m to col face (mm)</label><input class="mono" id="mBolt" type="number" value="60" step="5"/></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Embedment hef (mm)</label><input class="mono" id="hef" type="number" value="300" step="25"/></div>
+        <div class="field"><label>Anchor type</label>
+          <select id="anchorType"><option value="bond">Straight (bond)</option><option value="plate">Plate / hooked</option></select></div>
+      </div>
+      <div class="subhead">Case 1 — max compression (factored)</div>
+      <div class="grid3">
+        <div class="field"><label>N (kN, +comp)</label><input class="mono" id="bN1" type="number" value="600" step="10"/></div>
+        <div class="field"><label>M (kNm)</label><input class="mono" id="bM1" type="number" value="40" step="5"/></div>
+        <div class="field"><label>V (kN)</label><input class="mono" id="bV1" type="number" value="30" step="5"/></div>
+      </div>
+      <div class="subhead">Case 2 — uplift / min axial (factored)</div>
+      <div class="grid3">
+        <div class="field"><label>N (kN, −=uplift)</label><input class="mono" id="bN2" type="number" value="-80" step="10"/></div>
+        <div class="field"><label>M (kNm)</label><input class="mono" id="bM2" type="number" value="25" step="5"/></div>
+        <div class="field"><label>V (kN)</label><input class="mono" id="bV2" type="number" value="20" step="5"/></div>
+      </div>
+      <div class="hint">Two bolt lines assumed (one each side). Case 2 covers the wind‑uplift reversal from your frame combinations (e.g. 1.0G + 1.4W↑ base reactions).</div>
+    </div>
+
+    <div class="group" id="grpMConn" style="display:none">
+      <h3><span class="num">6</span> Moment end‑plate</h3>
+      <div class="grid2">
+        <div class="field"><label>Plate width bp (mm)</label><input class="mono" id="mpB" type="number" value="200" step="10"/></div>
+        <div class="field"><label>Plate t (mm)</label><input class="mono" id="mpT" type="number" value="20" step="1"/></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Bolt gauge g (mm)</label><input class="mono" id="gaugeG" type="number" value="100" step="5"/></div>
+        <div class="field"><label>Extension row above flange (mm)</label><input class="mono" id="exRow" type="number" value="40" step="5"/></div>
+      </div>
+      <div class="grid3">
+        <div class="field"><label>Row 2 below flange (mm)</label><input class="mono" id="p1Row" type="number" value="60" step="5"/></div>
+        <div class="field"><label>Pitch (mm)</label><input class="mono" id="pitchRow" type="number" value="80" step="5"/></div>
+        <div class="field"><label>Rows below flange</label><input class="mono" id="nBelow" type="number" value="1" min="0" max="4" step="1"/></div>
+      </div>
+      <div class="subhead">Design actions (factored)</div>
+      <div class="grid3">
+        <div class="field"><label>M (kNm)</label><input class="mono" id="mcM" type="number" value="90" step="5"/></div>
+        <div class="field"><label>V (kN)</label><input class="mono" id="mcV" type="number" value="80" step="5"/></div>
+        <div class="field"><label>N (kN)</label><input class="mono" id="mcN" type="number" value="0" step="5"/></div>
+      </div>
+      <div class="hint">Extended end‑plate, 2 bolts per row, elastic row distribution. Beam‑side checks; verify the column side (flange bending, web panel shear, stiffeners) separately.</div>
     </div>
 
     <div class="group" id="grpDefl">
@@ -1093,6 +1182,19 @@ function buildBeam(g, sec, loads, fixedEnds){
   return {nodes,elems,supports,roles:['beam','beam'],midNode:1,cases:{
     G:mk(loads.g), Q:mk(loads.q), W1:mk(loads.w1), W2:mk(loads.w2!=null?-Math.abs(loads.w2):0), X:mk(loads.x)}};
 }
+function buildCantilever(g, sec, loads){
+  const L=g.L*1000;
+  const nodes=[{x:0,y:0},{x:L/2,y:0},{x:L,y:0}];
+  const A=sec.A*100, I=sec.Iy*1e4;
+  const elems=[{n1:0,n2:1,A,I},{n1:1,n2:2,A,I}];
+  const supports=[{node:0,ux:1,uy:1,rz:1}]; // fixed at root, free tip
+  const mk=w=>({mLoads:w?[{el:0,gY:-w},{el:1,gY:-w}]:[],nLoads:[]});
+  const mkP=(P)=>({mLoads:[],nLoads:P?[{node:2,Fy:-P*1e3}]:[]}); // tip point load kN
+  const merge=(a,b)=>({mLoads:[...a.mLoads,...b.mLoads],nLoads:[...a.nLoads,...b.nLoads]});
+  return {nodes,elems,supports,roles:['beam','beam'],midNode:1,tipNode:2,rootNode:0,cantilever:true,cases:{
+    G:merge(mk(loads.g),mkP(loads.Pg)), Q:merge(mk(loads.q),mkP(loads.Pq)),
+    W1:mk(loads.w1), W2:mk(loads.w2!=null?-Math.abs(loads.w2):0), X:mk(loads.x)}};
+}
 function buildColumn(g, sec, loads, cantilever){
   const H=g.H*1000;
   const nodes=[{x:0,y:0},{x:0,y:H/2},{x:0,y:H}];
@@ -1236,6 +1338,280 @@ function trussDeflection(g, w, Achord_cm2, E){ // w kN/m service
 }
 
 
+/* ============================================================================
+   KHAVS CONNECTIONS MODULE
+   Base plate (axial ± moment ± uplift) with holding-down anchors & embedment,
+   and bolted moment end-plate connection. BS 5950 / EC3 bolt strengths.
+   Units: forces kN, moments kNm, dims mm, stresses N/mm2.
+   ============================================================================ */
+
+const BOLTS={
+  M12:{d:12,d0:14,As:84.3}, M16:{d:16,d0:18,As:157},
+  M20:{d:20,d0:22,As:245},  M24:{d:24,d0:26,As:353},
+  M30:{d:30,d0:33,As:561},  M36:{d:36,d0:39,As:817}};
+const BOLT_GRADES={
+  '4.6':{fub:400, pt:240, ps:160},
+  '8.8':{fub:800, pt:560, ps:375}};
+
+function boltCaps(size,grade,code){ // returns {Pt,Ps} kN per bolt
+  const b=BOLTS[size], g=BOLT_GRADES[grade];
+  if(code==='EC3'){
+    return {Pt:0.9*g.fub*b.As/1.25/1e3, Ps:0.6*g.fub*b.As/1.25/1e3,
+      lawT:'Ft,Rd = 0.9·fub·As/γM2', lawS:'Fv,Rd = 0.6·fub·As/γM2'};
+  }
+  return {Pt:g.pt*b.As/1e3, Ps:g.ps*b.As/1e3,
+    lawT:`Pt = pt·At (pt=${g.pt})`, lawS:`Ps = ps·As (ps=${g.ps})`};
+}
+function weldCap(code,grade){ // kN/mm per mm leg (multiply by 0.7·s·L)
+  if(code==='EC3'){ const fu=(grade==='S355')?470:410;
+    return {pw:fu/(Math.sqrt(3)*0.85*1.25), law:`fvw,d = fu/(√3·βw·γM2), fu=${fu}`};
+  }
+  const pw=(grade==='S355')?250:220;
+  return {pw, law:`pw = ${pw} N/mm² (Table 37)`};
+}
+
+/* ============================================================================
+   BASE PLATE  — rigid plate method
+   p = { sec (column props: h,b,tf,tw,A...), grade, py, code,
+         B,D,tp (plate mm), fc (fcu BS / fck EC3),
+         bolt:{size,grade,nLine (bolts per line), eB (bolt line to plate edge),
+               mB (bolt line to column face), hef, type:'bond'|'plate'},
+         weldS, cases:[{name,N,M,V}] (N +comp, kN, kNm) }
+   ============================================================================ */
+function basePlateCheck(p){
+  const {sec,py,code}=p;
+  const fjd = code==='EC3' ? 0.67*p.fc : 0.60*p.fc; // bearing strength
+  const bearLaw = code==='EC3' ? 'fjd = βj·fck = 0.67·fck' : '0.6·fcu (BS 5950 4.13.1)';
+  const bc=boltCaps(p.bolt.size,p.bolt.grade,code);
+  const wc=weldCap(code,p.grade);
+  const bd=BOLTS[p.bolt.size];
+  const db=p.D-2*p.bolt.eB;          // distance between bolt lines
+  const nL=p.bolt.nLine;
+  const results=[];
+
+  for(const cs of p.cases){
+    const steps=[],utils=[]; const S=(t,d,r,ps)=>steps.push({t,detail:d,result:r,pass:ps});
+    const U=(n,u)=>utils.push({name:n,u});
+    const N=cs.N, M=Math.abs(cs.M), V=Math.abs(cs.V);
+    S('Design actions',`Case: ${cs.name}`,`N = ${N.toFixed(1)} kN ${N>=0?'(compression)':'(UPLIFT)'} · M = ${M.toFixed(1)} kNm · V = ${V.toFixed(1)} kN`);
+    S('Bearing strength',`${bearLaw}, f = ${p.fc} N/mm²`,`fjd = ${fjd.toFixed(2)} N/mm²`);
+
+    let T=0, sigma=0, xblock=0, aproj=Math.max((p.D-sec.h)/2,(p.B-sec.b)/2,0);
+    if(N>0){
+      const e=M*1e6/(N*1e3); // mm
+      if(e<=p.D/6){
+        sigma=N*1e3/(p.B*p.D)*(1+6*e/p.D);
+        S('Bearing (e ≤ D/6, no bolt tension)',
+          `e = M/N = ${e.toFixed(0)} mm ≤ D/6 = ${(p.D/6).toFixed(0)} mm`,
+          `σmax = N/BD·(1+6e/D) = ${sigma.toFixed(2)} N/mm² vs fjd = ${fjd.toFixed(2)} → ${(sigma/fjd*100).toFixed(1)}%`, sigma<=fjd);
+        U('Bearing',sigma/fjd);
+      } else {
+        // compression block + anchor tension: moments about bolt line
+        const dBolt=p.D-p.bolt.eB;              // compression edge to bolt line
+        const RHS=M*1e6+N*1e3*(p.D/2-p.bolt.eB);
+        // fjd·B·x·(dBolt − x/2) = RHS  → quadratic
+        const a2=fjd*p.B/2, a1=-fjd*p.B*dBolt, a0=RHS;
+        const disc=a1*a1-4*a2*a0;
+        if(disc<0){ S('Bearing block','Compression block cannot balance — plate too small',`INCREASE plate size`,false); U('Bearing',9.99); }
+        else{
+          xblock=(-a1-Math.sqrt(disc))/(2*a2);
+          const C=fjd*p.B*xblock/1e3;
+          T=Math.max(C-N,0);
+          sigma=fjd;
+          S('Bearing block + anchor tension (e > D/6)',
+            `e = ${e.toFixed(0)} mm; solve fjd·B·x·(d−x/2) = M + N·(D/2−eB): x = ${xblock.toFixed(0)} mm`,
+            `C = ${C.toFixed(1)} kN at fjd, anchor line tension T = C − N = ${T.toFixed(1)} kN`, xblock<=p.D);
+          U('Bearing block',xblock/p.D);
+        }
+      }
+    } else {
+      // net uplift: both lines in tension
+      const Nt=-N;
+      const T1=Nt/2+M*1e3/db*1e3/1e3; // kN : M(kNm)*1e6 /db(mm) /1e3
+      const Tcalc=Nt/2+(M*1e6/db)/1e3;
+      T=Math.max(Tcalc, Nt/2-(M*1e6/db)/1e3);
+      S('Uplift — anchor tension both lines',
+        `T = N↑/2 ± M/db, db = ${db.toFixed(0)} mm`,
+        `Governing line tension T = ${T.toFixed(1)} kN`, true);
+    }
+
+    // plate thickness — compression side
+    if(N>0 && aproj>0 && sigma>0){
+      const w=Math.min(sigma,fjd);
+      const tReq = code==='EC3'
+        ? aproj*Math.sqrt(3*w/py)
+        : aproj*Math.sqrt(2.5*w/py);
+      const law = code==='EC3' ? 't ≥ c·√(3w/fy) (from c-method)' : 't = a·√(2.5w/pyp) (BS 4.13.2.2)';
+      S('Plate thickness — bearing side',
+        `${law}; outstand a = ${aproj.toFixed(0)} mm, w = ${w.toFixed(2)} N/mm²`,
+        `t,req = ${tReq.toFixed(1)} mm vs tp = ${p.tp} mm → ${(tReq/p.tp*100).toFixed(1)}%`, tReq<=p.tp);
+      U('Plate (bearing)',tReq/p.tp);
+    }
+    // plate bending — tension (bolt) side
+    if(T>0.1){
+      const Tb=T/nL;
+      const sB=Math.max((p.B-2*p.bolt.eB)/Math.max(nL-1,1),60);
+      const beff=Math.min(4*p.bolt.mB+1.25*p.bolt.eB, 2*Math.PI*p.bolt.mB, sB);
+      const F1=beff*p.tp*p.tp*py/p.bolt.mB/1e3; // kN  (=4Mpl/m)
+      S('Plate bending — anchor side (T‑stub mode 1)',
+        `beff = min(4m+1.25e, 2πm, s) = ${beff.toFixed(0)} mm; F1 = beff·tp²·py/m`,
+        `F1 = ${F1.toFixed(1)} kN vs T/bolt = ${Tb.toFixed(1)} kN → ${(Tb/F1*100).toFixed(1)}%`, Tb<=F1);
+      U('Plate (tension side)',Tb/F1);
+    }
+
+    // anchors
+    const Tb=T>0.1? T/nL : 0;
+    const Fv=V/(2*nL);
+    if(Tb>0){
+      S(`Anchor tension (${p.bolt.size} ${p.bolt.grade})`,`${bc.lawT}; ${nL} bolts/line`,
+        `Pt = ${bc.Pt.toFixed(1)} kN vs Ft = ${Tb.toFixed(1)} → ${(Tb/bc.Pt*100).toFixed(1)}%`, Tb<=bc.Pt);
+      U('Anchor tension',Tb/bc.Pt);
+      // concrete cone (CEN/TS 1992-4 simplified, single anchor)
+      const fck = code==='EC3'? p.fc : p.fc*0.8; // fcu→fck approx
+      const NRdc=7.2*Math.sqrt(fck)*Math.pow(p.bolt.hef,1.5)/1.5/1e3;
+      S('Concrete cone (per anchor)',
+        `NRd,c = 7.2·√fck·hef^1.5 / 1.5; hef = ${p.bolt.hef} mm, fck ≈ ${fck.toFixed(0)}`,
+        `NRd,c = ${NRdc.toFixed(1)} kN vs ${Tb.toFixed(1)} → ${(Tb/NRdc*100).toFixed(1)}% (reduce for anchor spacing < 3·hef / edges)`, Tb<=NRdc);
+      U('Concrete cone',Tb/NRdc);
+      // pull-out / bond
+      if(p.bolt.type==='bond'){
+        const fctd=0.7*0.3*Math.pow(fck,2/3)/1.5;
+        const fbd=2.25*fctd;
+        const NRdp=Math.PI*bd.d*p.bolt.hef*fbd/1e3;
+        const hefReq=Tb*1e3/(Math.PI*bd.d*fbd);
+        S('Bond pull-out (straight cast-in anchor)',
+          `fbd = 2.25·fctd = ${fbd.toFixed(2)} N/mm² (EC2); NRd,p = π·d·hef·fbd`,
+          `NRd,p = ${NRdp.toFixed(1)} kN vs ${Tb.toFixed(1)} → ${(Tb/NRdp*100).toFixed(1)}% · embedment required ≈ ${Math.ceil(hefReq)} mm vs ${p.bolt.hef} provided`, Tb<=NRdp);
+        U('Bond / embedment',Tb/NRdp);
+      } else {
+        S('Pull-out (plate / hooked anchor)','Mechanical anchorage via plate or hook',
+          'Bond not relied upon — cone + anchor steel govern. Size the anchor plate for bearing (≥ 3·bolt dia square is typical).',undefined);
+      }
+    }
+    if(V>0.1){
+      S('Anchor shear',`${bc.lawS}; ${2*nL} anchors resist V`,
+        `Ps = ${bc.Ps.toFixed(1)} kN vs Fv = ${Fv.toFixed(2)} → ${(Fv/bc.Ps*100).toFixed(1)}%`, Fv<=bc.Ps);
+      U('Anchor shear',Fv/bc.Ps);
+      if(Tb>0){
+        const comb = code==='EC3'? Fv/bc.Ps + Tb/(1.4*bc.Pt) : (Fv/bc.Ps + Tb/bc.Pt)/1.4;
+        const law = code==='EC3'? 'Fv/FvRd + Ft/(1.4FtRd) ≤ 1' : 'Fs/Ps + Ft/Pt ≤ 1.4';
+        S('Anchor combined',law,`= ${comb.toFixed(3)} → ${(comb*100).toFixed(1)}%`, comb<=1);
+        U('Anchor combined',comb);
+      }
+    }
+    // weld
+    if(p.weldS>0){
+      const a=0.7*p.weldS;
+      const Ff=M*1e6/Math.max(sec.h-sec.tf,1)+Math.max(0,-N)*1e3/2; // N
+      const Lf=2*sec.b;
+      const uF=Ff/(a*Lf*wc.pw);
+      const Lw=2*(sec.h-2*sec.tf);
+      const uV=V*1e3/(a*Lw*wc.pw);
+      S(`Column-to-plate weld (${p.weldS} mm fillet)`,
+        `${wc.law}; flange force = M/(h−tf) + uplift/2 over ${Lf.toFixed(0)} mm; web takes V over ${Lw.toFixed(0)} mm`,
+        `flange: ${(uF*100).toFixed(1)}% · web shear: ${(uV*100).toFixed(1)}%`, uF<=1&&uV<=1);
+      U('Weld',Math.max(uF,uV));
+    }
+    const govern=utils.reduce((x,y)=>y.u>x.u?y:x,{name:'—',u:0});
+    results.push({name:cs.name,steps,utils,govern,T,sigma,xblock,pass:govern.u<=1});
+  }
+  const gov=results.reduce((x,y)=>y.govern.u>x.govern.u?y:x);
+  return {code:code==='EC3'?'BS EN 1993-1-8 / CEN-TS 1992-4 (simplified)':'BS 5950-1 cl 4.13 + anchors (simplified)',
+    results,gov,fjd,db,pass:gov.govern.u<=1};
+}
+
+/* ============================================================================
+   MOMENT END-PLATE CONNECTION (beam side, simplified elastic bolt-row method)
+   p = { sec (beam), grade, py, code, bp (plate width), tp,
+         bolt:{size,grade}, gauge g, ex (row above flange face),
+         p1 (first row below flange face), pitch, nBelow, weldS,
+         loads:{M,V,N} }
+   ============================================================================ */
+function momentConnCheck(p){
+  const {sec,py,code}=p;
+  const bc=boltCaps(p.bolt.size,p.bolt.grade,code);
+  const wc=weldCap(code,p.grade);
+  const steps=[],utils=[]; const S=(t,d,r,ps)=>steps.push({t,detail:d,result:r,pass:ps});
+  const U=(n,u)=>utils.push({name:n,u});
+  const M=Math.abs(p.loads.M), V=Math.abs(p.loads.V), N=p.loads.N||0;
+
+  // row lever arms from compression (bottom) flange centre
+  const topFace=sec.h-sec.tf/2;            // top flange centre ~ lever from bottom flange centre = h - tf
+  const hcf=sec.h-sec.tf;                  // between flange centres
+  const rows=[];
+  rows.push({y:hcf+sec.tf/2+p.ex, tag:'extended (above flange)'});
+  for(let i=0;i<p.nBelow;i++){
+    rows.push({y:hcf-sec.tf/2-p.p1-i*p.pitch, tag:i===0?'below flange':'inner row '+(i+1)});
+  }
+  rows.forEach(r=>r.y=Math.max(r.y,10));
+  const sumY2=rows.reduce((s,r)=>s+r.y*r.y,0);
+  rows.forEach(r=>r.F=M*1e6*r.y/sumY2/1e3); // kN per row (2 bolts)
+  S('Design actions','Elastic bolt-row distribution Fi = M·hi/Σhj²',
+    `M = ${M.toFixed(1)} kNm · V = ${V.toFixed(1)} kN${N?` · N = ${N.toFixed(1)} kN`:''} · ${rows.length} tension row(s)`);
+
+  // T-stub / row capacity
+  const m=Math.max((p.gauge-sec.tw)/2-0.8*p.weldS,10);
+  const e=(p.bp-p.gauge)/2;
+  let MRd=0, worstRow={u:0};
+  rows.forEach((r,i)=>{
+    const beff=Math.min(4*m+1.25*e, 2*Math.PI*m, i>0?p.pitch:1e9);
+    const F1=beff*p.tp*p.tp*py/m/1e3;        // plate mode-1
+    const Fweb=py*sec.tw*Math.min(beff, p.pitch||beff)/1e3; // web tension
+    const cap=Math.min(F1, 2*bc.Pt, i>0?Fweb:1e9);
+    const u=r.F/cap;
+    if(u>worstRow.u) worstRow={u,row:i+1};
+    MRd+=Math.min(cap,r.F>0?cap:cap)*r.y/1e3*1; // potential
+    S(`Row ${i+1} — ${r.tag} (h = ${r.y.toFixed(0)} mm)`,
+      `F = ${r.F.toFixed(1)} kN · plate F1 = ${F1.toFixed(1)} (beff=${beff.toFixed(0)}, m=${m.toFixed(0)}) · bolts 2Pt = ${(2*bc.Pt).toFixed(1)}${i>0?` · web = ${Fweb.toFixed(1)}`:''}`,
+      `capacity = ${cap.toFixed(1)} kN → ${(u*100).toFixed(1)}%`, u<=1);
+  });
+  U('Bolt rows (worst)',worstRow.u);
+  const MRdPot=rows.reduce((s,r,i)=>{
+    const beff=Math.min(4*m+1.25*e,2*Math.PI*m,i>0?p.pitch:1e9);
+    const cap=Math.min(beff*p.tp*p.tp*py/m/1e3, 2*bc.Pt, i>0?py*sec.tw*Math.min(beff,p.pitch)/1e3:1e9);
+    return s+cap*r.y/1e3;
+  },0);
+  S('Moment capacity (potential)','MRd = Σ (row capacity)·hi',
+    `MRd = ${MRdPot.toFixed(1)} kNm vs M = ${M.toFixed(1)} → ${(M/MRdPot*100).toFixed(1)}%`, M<=MRdPot);
+  U('Moment capacity',M/MRdPot);
+
+  // compression flange
+  const C=rows.reduce((s,r)=>s+r.F,0)+Math.max(N,0);
+  const Cres=1.4*py*sec.b*sec.tf/1e3;
+  S('Compression flange bearing','C = ΣFi (+N) ≤ 1.4·py·b·tf (green-book potential)',
+    `C = ${C.toFixed(1)} kN vs ${Cres.toFixed(1)} → ${(C/Cres*100).toFixed(1)}%`, C<=Cres);
+  U('Compression flange',C/Cres);
+
+  // bolt shear + combined
+  const nBolts=2*rows.length+2; // + compression pair
+  const Fv=V/nBolts;
+  S('Bolt shear',`${bc.lawS}; ${nBolts} bolts (incl. compression pair)`,
+    `Ps = ${bc.Ps.toFixed(1)} kN vs Fv = ${Fv.toFixed(2)} → ${(Fv/bc.Ps*100).toFixed(1)}%`, Fv<=bc.Ps);
+  U('Bolt shear',Fv/bc.Ps);
+  const Ftmax=Math.max(...rows.map(r=>r.F))/2;
+  const comb = code==='EC3'? Fv/bc.Ps+Ftmax/(1.4*bc.Pt) : (Fv/bc.Ps+Ftmax/bc.Pt)/1.4;
+  S('Bolt combined',(code==='EC3'?'Fv/FvRd + Ft/(1.4FtRd) ≤ 1':'(Fs/Ps + Ft/Pt) ≤ 1.4'),
+    `= ${comb.toFixed(3)} → ${(comb*100).toFixed(1)}%`, comb<=1);
+  U('Bolt combined',comb);
+
+  // welds
+  if(p.weldS>0){
+    const a=0.7*p.weldS;
+    const Ff=C*1e3, Lf=2*sec.b;
+    const uF=Ff/(a*Lf*wc.pw);
+    const Lw=2*(sec.h-2*sec.tf);
+    const uV=V*1e3/(a*Lw*wc.pw);
+    S(`Beam-to-plate weld (${p.weldS} mm fillet)`,
+      `${wc.law}; flange force C over ${Lf.toFixed(0)} mm; web V over ${Lw.toFixed(0)} mm`,
+      `flange: ${(uF*100).toFixed(1)}% · web: ${(uV*100).toFixed(1)}%`, uF<=1&&uV<=1);
+    U('Weld',Math.max(uF,uV));
+  }
+  const govern=utils.reduce((x,y)=>y.u>x.u?y:x,{name:'—',u:0});
+  return {code:code==='EC3'?'BS EN 1993-1-8 (simplified beam-side)':'BS 5950 / SCI moment connections (simplified beam-side)',
+    steps,utils,govern,rows,m,MRd:MRdPot,pass:govern.u<=1};
+}
+
+
 const LIBRARY = [{"name":"UB 178x102x19","fam":"UB","type":"I","h":177.8,"b":101.2,"tw":4.8,"tf":7.9,"r":7.6,"A":24.26,"Iy":1325,"Iz":136.6,"Zely":149,"Zelz":27,"Sy":167.3,"Sz":41.4,"ry":7.39,"rz":2.37,"J":3.9,"Iw":9859,"u":0.877,"x":23.9,"computed":true},{"name":"UB 203x133x25","fam":"UB","type":"I","h":203.2,"b":133.2,"tw":5.7,"tf":7.8,"r":7.6,"A":31.97,"Iy":2298,"Iz":307.5,"Zely":226.2,"Zelz":46.2,"Sy":253.2,"Sz":70.7,"ry":8.48,"rz":3.1,"J":5.4,"Iw":29353,"u":0.869,"x":27,"computed":true},{"name":"UB 203x133x30","fam":"UB","type":"I","h":206.8,"b":133.9,"tw":6.4,"tf":9.6,"r":7.6,"A":38.21,"Iy":2853,"Iz":384.5,"Zely":276,"Zelz":57.4,"Sy":309.8,"Sz":88,"ry":8.64,"rz":3.17,"J":9.5,"Iw":37383,"u":0.875,"x":22.3,"computed":true},{"name":"UB 254x146x31","fam":"UB","type":"I","h":251.4,"b":146.1,"tw":6,"tf":8.6,"r":7.6,"A":39.68,"Iy":4347,"Iz":447.4,"Zely":345.9,"Zelz":61.2,"Sy":387.3,"Sz":93.9,"ry":10.47,"rz":3.36,"J":7.9,"Iw":65939,"u":0.873,"x":30.8,"computed":true},{"name":"UB 254x146x37","fam":"UB","type":"I","h":256,"b":146.4,"tw":6.3,"tf":10.9,"r":7.6,"A":47.17,"Iy":5471,"Iz":570.5,"Zely":427.4,"Zelz":77.9,"Sy":477.5,"Sz":119.1,"ry":10.77,"rz":3.48,"J":14.6,"Iw":85683,"u":0.884,"x":24.9,"computed":true},{"name":"UB 305x102x28","fam":"UB","type":"I","h":308.7,"b":101.8,"tw":6,"tf":8.8,"r":7.6,"A":35.88,"Iy":5263,"Iz":155.3,"Zely":341,"Zelz":30.5,"Sy":395.8,"Sz":48.2,"ry":12.11,"rz":2.08,"J":6.7,"Iw":34909,"u":0.851,"x":39.2,"computed":true},{"name":"UB 305x165x40","fam":"UB","type":"I","h":303.4,"b":165,"tw":6,"tf":10.2,"r":8.9,"A":51.32,"Iy":8370,"Iz":764.2,"Zely":551.8,"Zelz":92.6,"Sy":613.6,"Sz":141.4,"ry":12.77,"rz":3.86,"J":13.7,"Iw":164232,"u":0.882,"x":32.1,"computed":true},{"name":"UB 305x165x54","fam":"UB","type":"I","h":310.4,"b":166.9,"tw":7.9,"tf":13.7,"r":8.9,"A":68.77,"Iy":11564,"Iz":1062.7,"Zely":745.1,"Zelz":127.3,"Sy":836.6,"Sz":195.2,"ry":12.97,"rz":3.93,"J":33.3,"Iw":233878,"u":0.884,"x":24.1,"computed":true},{"name":"UB 356x171x51","fam":"UB","type":"I","h":355,"b":171.5,"tw":7.4,"tf":11.5,"r":10.2,"A":64.91,"Iy":13897,"Iz":967.9,"Zely":782.9,"Zelz":112.9,"Sy":881.4,"Sz":173.7,"ry":14.63,"rz":3.86,"J":21.9,"Iw":285520,"u":0.873,"x":33.5,"computed":true},{"name":"UB 356x171x67","fam":"UB","type":"I","h":363.4,"b":173.2,"tw":9.1,"tf":15.7,"r":10.2,"A":85.49,"Iy":19223,"Iz":1361.6,"Zely":1058,"Zelz":157.2,"Sy":1196.2,"Sz":242.4,"ry":15,"rz":3.99,"J":53,"Iw":411535,"u":0.881,"x":25,"computed":true},{"name":"UB 406x178x60","fam":"UB","type":"I","h":406.4,"b":177.9,"tw":7.9,"tf":12.8,"r":10.2,"A":76.52,"Iy":21280,"Iz":1202.7,"Zely":1047.3,"Zelz":135.2,"Sy":1182.7,"Sz":208.5,"ry":16.68,"rz":3.96,"J":31.1,"Iw":465803,"u":0.873,"x":34.9,"computed":true},{"name":"UB 406x178x74","fam":"UB","type":"I","h":412.8,"b":179.5,"tw":9.5,"tf":16,"r":10.2,"A":94.51,"Iy":26994,"Iz":1545,"Zely":1307.8,"Zelz":172.1,"Sy":1484,"Sz":266.4,"ry":16.9,"rz":4.04,"J":59.9,"Iw":608150,"u":0.877,"x":28.2,"computed":true},{"name":"UB 457x152x60","fam":"UB","type":"I","h":454.6,"b":152.9,"tw":8.1,"tf":13.3,"r":10.2,"A":76.23,"Iy":25100,"Iz":794.3,"Zely":1104.3,"Zelz":103.9,"Sy":1268.4,"Sz":162.5,"ry":18.15,"rz":3.23,"J":31.6,"Iw":386695,"u":0.861,"x":38.8,"computed":true},{"name":"UB 457x191x67","fam":"UB","type":"I","h":453.4,"b":189.9,"tw":8.5,"tf":12.7,"r":10.2,"A":85.51,"Iy":28980,"Iz":1451.7,"Zely":1278.3,"Zelz":152.9,"Sy":1452.1,"Sz":236.7,"ry":18.41,"rz":4.12,"J":34.7,"Iw":704870,"u":0.867,"x":39.2,"computed":true},{"name":"UB 457x191x82","fam":"UB","type":"I","h":460,"b":191.3,"tw":9.9,"tf":16,"r":10.2,"A":104.48,"Iy":36651,"Iz":1870.3,"Zely":1593.5,"Zelz":195.5,"Sy":1812.4,"Sz":303.3,"ry":18.73,"rz":4.23,"J":66.1,"Iw":921773,"u":0.872,"x":31.6,"computed":true},{"name":"UB 533x210x92","fam":"UB","type":"I","h":533.1,"b":209.3,"tw":10.1,"tf":15.6,"r":12.7,"A":117.38,"Iy":54375,"Iz":2388.2,"Zely":2040,"Zelz":228.2,"Sy":2325.7,"Sz":354.5,"ry":21.52,"rz":4.51,"J":70.2,"Iw":1598918,"u":0.865,"x":37.9,"computed":true},{"name":"UB 533x210x101","fam":"UB","type":"I","h":536.7,"b":210,"tw":10.8,"tf":17.4,"r":12.7,"A":128.67,"Iy":60666,"Iz":2691,"Zely":2260.7,"Zelz":256.3,"Sy":2577.7,"Sz":398.3,"ry":21.71,"rz":4.57,"J":94.8,"Iw":1814194,"u":0.868,"x":34.2,"computed":true},{"name":"UB 610x229x113","fam":"UB","type":"I","h":607.6,"b":228.2,"tw":11.1,"tf":17.3,"r":12.7,"A":143.94,"Iy":86204,"Iz":3433,"Zely":2837.5,"Zelz":300.9,"Sy":3241.5,"Sz":468.1,"ry":24.47,"rz":4.88,"J":104.9,"Iw":2990572,"u":0.865,"x":39.1,"computed":true},{"name":"UB 610x229x140","fam":"UB","type":"I","h":617.2,"b":230.2,"tw":13.1,"tf":22.1,"r":12.7,"A":178.2,"Iy":110663,"Iz":4503.9,"Zely":3586,"Zelz":391.3,"Sy":4102.8,"Sz":610.1,"ry":24.92,"rz":5.03,"J":208.6,"Iw":3987615,"u":0.871,"x":31.1,"computed":true},{"name":"UB 686x254x152","fam":"UB","type":"I","h":687.5,"b":254.5,"tw":13.2,"tf":21,"r":15.2,"A":194.08,"Iy":148332,"Iz":5781.8,"Zely":4315.1,"Zelz":454.4,"Sy":4937.1,"Sz":708.2,"ry":27.65,"rz":5.46,"J":206.6,"Iw":6420990,"u":0.865,"x":36.6,"computed":true},{"name":"UB 762x267x173","fam":"UB","type":"I","h":762.2,"b":266.7,"tw":14.3,"tf":21.6,"r":16.5,"A":220.37,"Iy":202323,"Iz":6846.7,"Zely":5308.9,"Zelz":513.4,"Sy":6114.5,"Sz":804.9,"ry":30.3,"rz":5.57,"J":249.3,"Iw":9388404,"u":0.858,"x":39.4,"computed":true},{"name":"UB 914x305x201","fam":"UB","type":"I","h":903,"b":303.3,"tw":15.1,"tf":20.2,"r":19.1,"A":255.92,"Iy":319543,"Iz":9418,"Zely":7077.4,"Zelz":621,"Sy":8217.5,"Sz":978.3,"ry":35.34,"rz":6.07,"J":265.7,"Iw":18349522,"u":0.847,"x":49,"computed":true},{"name":"UC 152x152x23","fam":"UC","type":"I","h":152.4,"b":152.2,"tw":5.8,"tf":6.8,"r":7.6,"A":29.25,"Iy":1227,"Iz":399.8,"Zely":161,"Zelz":52.5,"Sy":178.6,"Sz":79.9,"ry":6.48,"rz":3.7,"J":4.1,"Iw":21189,"u":0.83,"x":22,"computed":true},{"name":"UC 152x152x30","fam":"UC","type":"I","h":157.6,"b":152.9,"tw":6.5,"tf":9.4,"r":7.6,"A":38.26,"Iy":1725,"Iz":560.3,"Zely":218.9,"Zelz":73.3,"Sy":244.3,"Sz":111.3,"ry":6.71,"rz":3.83,"J":9.7,"Iw":30767,"u":0.841,"x":16.6,"computed":true},{"name":"UC 152x152x37","fam":"UC","type":"I","h":161.8,"b":154.4,"tw":8,"tf":11.5,"r":7.6,"A":47.11,"Iy":2188,"Iz":706.1,"Zely":270.4,"Zelz":91.5,"Sy":305.4,"Sz":139.3,"ry":6.81,"rz":3.87,"J":18,"Iw":39876,"u":0.843,"x":13.8,"computed":true},{"name":"UC 203x203x46","fam":"UC","type":"I","h":203.2,"b":203.6,"tw":7.2,"tf":11,"r":10.2,"A":58.73,"Iy":4498,"Iz":1547.9,"Zely":442.7,"Zelz":152,"Sy":489.6,"Sz":230.3,"ry":8.75,"rz":5.13,"J":20.3,"Iw":142949,"u":0.838,"x":18.5,"computed":true},{"name":"UC 203x203x60","fam":"UC","type":"I","h":209.6,"b":205.8,"tw":9.4,"tf":14.2,"r":10.2,"A":76.37,"Iy":6055,"Iz":2064.1,"Zely":577.7,"Zelz":200.6,"Sy":648.2,"Sz":304.7,"ry":8.9,"rz":5.2,"J":44.3,"Iw":197027,"u":0.84,"x":14.5,"computed":true},{"name":"UC 203x203x71","fam":"UC","type":"I","h":215.8,"b":206.4,"tw":10,"tf":17.3,"r":10.2,"A":90.43,"Iy":7548,"Iz":2536.8,"Zely":699.6,"Zelz":245.8,"Sy":790.9,"Sz":373,"ry":9.14,"rz":5.3,"J":77.3,"Iw":249887,"u":0.847,"x":12.2,"computed":true},{"name":"UC 254x254x73","fam":"UC","type":"I","h":254.1,"b":254.6,"tw":8.6,"tf":14.2,"r":12.7,"A":93.1,"Iy":11240,"Iz":3907,"Zely":884.7,"Zelz":306.9,"Sy":976.8,"Sz":464.4,"ry":10.99,"rz":6.48,"J":53.4,"Iw":562142,"u":0.841,"x":17.9,"computed":true},{"name":"UC 254x254x89","fam":"UC","type":"I","h":260.3,"b":256.3,"tw":10.3,"tf":17.3,"r":12.7,"A":113.31,"Iy":14100,"Iz":4856.5,"Zely":1083.4,"Zelz":379,"Sy":1208.6,"Sz":574.2,"ry":11.16,"rz":6.55,"J":96.7,"Iw":716930,"u":0.843,"x":14.9,"computed":true},{"name":"UC 254x254x107","fam":"UC","type":"I","h":266.7,"b":258.8,"tw":12.8,"tf":20.5,"r":12.7,"A":136.38,"Iy":17343,"Iz":5926.3,"Zely":1300.5,"Zelz":458,"Sy":1469.2,"Sz":695.8,"ry":11.28,"rz":6.59,"J":164.4,"Iw":898050,"u":0.843,"x":12.7,"computed":true},{"name":"UC 305x305x97","fam":"UC","type":"I","h":307.9,"b":305.3,"tw":9.9,"tf":15.4,"r":15.2,"A":123.45,"Iy":21887,"Iz":7306.1,"Zely":1421.7,"Zelz":478.6,"Sy":1565.3,"Sz":724.5,"ry":13.32,"rz":7.69,"J":83.3,"Iw":1562697,"u":0.841,"x":20.2,"computed":true},{"name":"UC 305x305x118","fam":"UC","type":"I","h":314.5,"b":307.4,"tw":12,"tf":18.7,"r":15.2,"A":150.2,"Iy":27310,"Iz":9057.2,"Zely":1736.7,"Zelz":589.3,"Sy":1930.7,"Sz":893.5,"ry":13.48,"rz":7.77,"J":150,"Iw":1981206,"u":0.843,"x":16.8,"computed":true},{"name":"UC 305x305x137","fam":"UC","type":"I","h":320.5,"b":309.2,"tw":13.8,"tf":21.7,"r":15.2,"A":174.42,"Iy":32452,"Iz":10697.3,"Zely":2025.1,"Zelz":691.9,"Sy":2269.7,"Sz":1050.5,"ry":13.64,"rz":7.83,"J":234.9,"Iw":2387672,"u":0.844,"x":14.6,"computed":true},{"name":"UC 356x368x129","fam":"UC","type":"I","h":355.6,"b":368.6,"tw":10.4,"tf":17.5,"r":15.2,"A":164.34,"Iy":39757,"Iz":14609.7,"Zely":2236.1,"Zelz":792.7,"Sy":2448.2,"Sz":1197.5,"ry":15.55,"rz":9.43,"J":143.7,"Iw":4175154,"u":0.837,"x":20.5,"computed":true},{"name":"UC 356x368x177","fam":"UC","type":"I","h":368.2,"b":372.6,"tw":14.4,"tf":23.8,"r":15.2,"A":225.51,"Iy":56630,"Iz":20526.9,"Zely":3076,"Zelz":1101.8,"Sy":3424.1,"Sz":1668.7,"ry":15.85,"rz":9.54,"J":366.8,"Iw":6086805,"u":0.839,"x":15.3,"computed":true},{"name":"PFC 100x50x10","fam":"PFC","type":"channel","h":100,"b":50,"tw":5,"tf":8.5,"r":9,"A":10,"Iy":167,"Iz":26,"Zely":33.3,"Zelz":6.9,"Sy":37.5,"Sz":8.3,"ry":4.08,"rz":1.61,"J":0.8,"Iw":0,"u":0.9,"x":11.8,"computed":true},{"name":"PFC 125x65x15","fam":"PFC","type":"channel","h":125,"b":65,"tw":5.5,"tf":9.5,"r":12,"A":14.03,"Iy":369,"Iz":62.2,"Zely":59,"Zelz":12.8,"Sy":66.2,"Sz":15.4,"ry":5.13,"rz":2.11,"J":1.4,"Iw":0,"u":0.9,"x":13.2,"computed":true},{"name":"PFC 150x75x18","fam":"PFC","type":"channel","h":150,"b":75,"tw":5.5,"tf":10,"r":12,"A":16.5,"Iy":619,"Iz":96.7,"Zely":82.5,"Zelz":17.2,"Sy":92.8,"Sz":20.6,"ry":6.12,"rz":2.42,"J":1.7,"Iw":0,"u":0.9,"x":15,"computed":true},{"name":"PFC 150x90x24","fam":"PFC","type":"channel","h":150,"b":90,"tw":6.5,"tf":12,"r":12,"A":21.45,"Iy":841,"Iz":186.7,"Zely":112.1,"Zelz":28.5,"Sy":124.3,"Sz":34.2,"ry":6.26,"rz":2.95,"J":3,"Iw":0,"u":0.9,"x":12.5,"computed":true},{"name":"PFC 180x90x26","fam":"PFC","type":"channel","h":180,"b":90,"tw":6.5,"tf":12.5,"r":12,"A":23.4,"Iy":1264,"Iz":197.4,"Zely":140.4,"Zelz":29.3,"Sy":157.9,"Sz":35.1,"ry":7.35,"rz":2.9,"J":3.3,"Iw":0,"u":0.9,"x":14.4,"computed":true},{"name":"PFC 200x75x23","fam":"PFC","type":"channel","h":200,"b":75,"tw":6,"tf":12.5,"r":12,"A":21,"Iy":1300,"Iz":114.5,"Zely":130,"Zelz":19.4,"Sy":150,"Sz":23.3,"ry":7.87,"rz":2.34,"J":2.5,"Iw":0,"u":0.9,"x":16,"computed":true},{"name":"PFC 200x90x30","fam":"PFC","type":"channel","h":200,"b":90,"tw":7,"tf":14,"r":12,"A":26.6,"Iy":1727,"Iz":219.3,"Zely":172.7,"Zelz":31.9,"Sy":196,"Sz":38.3,"ry":8.06,"rz":2.87,"J":4.3,"Iw":0,"u":0.9,"x":14.3,"computed":true},{"name":"PFC 230x90x32","fam":"PFC","type":"channel","h":230,"b":90,"tw":7.5,"tf":14,"r":12,"A":30.75,"Iy":2546,"Iz":244.5,"Zely":221.4,"Zelz":34.8,"Sy":254.4,"Sz":41.8,"ry":9.1,"rz":2.82,"J":5.8,"Iw":0,"u":0.9,"x":16.4,"computed":true},{"name":"PFC 260x90x35","fam":"PFC","type":"channel","h":260,"b":90,"tw":8,"tf":14,"r":12,"A":35.2,"Iy":3605,"Iz":269.5,"Zely":277.3,"Zelz":37.6,"Sy":322.4,"Sz":45.2,"ry":10.12,"rz":2.77,"J":7.5,"Iw":0,"u":0.9,"x":18.6,"computed":true},{"name":"PFC 300x90x41","fam":"PFC","type":"channel","h":300,"b":90,"tw":9,"tf":15.5,"r":12,"A":43.2,"Iy":5670,"Iz":314.4,"Zely":378,"Zelz":43,"Sy":445.5,"Sz":51.6,"ry":11.46,"rz":2.7,"J":11.7,"Iw":0,"u":0.9,"x":19.4,"computed":true},{"name":"PFC 300x100x46","fam":"PFC","type":"channel","h":300,"b":100,"tw":9,"tf":16.5,"r":15,"A":45,"Iy":6075,"Iz":420,"Zely":405,"Zelz":52.5,"Sy":472.5,"Sz":63,"ry":11.62,"rz":3.06,"J":12.2,"Iw":0,"u":0.9,"x":18.2,"computed":true},{"name":"IPE80","fam":"IPE","type":"I","h":80,"b":46,"tw":3.8,"tf":5.2,"r":5,"A":7.64,"Iy":80.1,"Iz":8.49,"Zely":20,"Zelz":3.69,"Sy":23.3,"Sz":5.82,"ry":3.24,"rz":1.05,"J":0.7,"Iw":4260,"u":0.878,"x":14},{"name":"IPE100","fam":"IPE","type":"I","h":100,"b":55,"tw":4.1,"tf":5.7,"r":7,"A":10.3,"Iy":171,"Iz":15.9,"Zely":34.2,"Zelz":5.79,"Sy":39.4,"Sz":9.15,"ry":4.07,"rz":1.24,"J":1.21,"Iw":12200,"u":0.879,"x":15.6},{"name":"IPE120","fam":"IPE","type":"I","h":120,"b":64,"tw":4.4,"tf":6.3,"r":7,"A":13.2,"Iy":318,"Iz":27.7,"Zely":53,"Zelz":8.65,"Sy":60.8,"Sz":13.6,"ry":4.9,"rz":1.45,"J":1.74,"Iw":29400,"u":0.88,"x":17.7},{"name":"IPE140","fam":"IPE","type":"I","h":140,"b":73,"tw":4.7,"tf":6.9,"r":7,"A":16.4,"Iy":541,"Iz":44.9,"Zely":77.3,"Zelz":12.3,"Sy":88.4,"Sz":19.2,"ry":5.74,"rz":1.65,"J":2.44,"Iw":62400,"u":0.881,"x":19.5},{"name":"IPE160","fam":"IPE","type":"I","h":160,"b":82,"tw":5,"tf":7.4,"r":9,"A":20.1,"Iy":869,"Iz":68.3,"Zely":109,"Zelz":16.7,"Sy":124,"Sz":26.1,"ry":6.58,"rz":1.84,"J":3.6,"Iw":122000,"u":0.881,"x":20.4},{"name":"IPE180","fam":"IPE","type":"I","h":180,"b":91,"tw":5.3,"tf":8,"r":9,"A":23.9,"Iy":1320,"Iz":101,"Zely":146,"Zelz":22.2,"Sy":166,"Sz":34.6,"ry":7.42,"rz":2.05,"J":4.79,"Iw":225000,"u":0.881,"x":21.7},{"name":"IPE200","fam":"IPE","type":"I","h":200,"b":100,"tw":5.6,"tf":8.5,"r":12,"A":28.5,"Iy":1940,"Iz":142,"Zely":194,"Zelz":28.5,"Sy":221,"Sz":44.6,"ry":8.26,"rz":2.24,"J":6.29,"Iw":395000,"u":0.883,"x":23.1},{"name":"IPE220","fam":"IPE","type":"I","h":220,"b":110,"tw":5.9,"tf":9.2,"r":12,"A":33.4,"Iy":2770,"Iz":205,"Zely":252,"Zelz":37.3,"Sy":285,"Sz":58.1,"ry":9.11,"rz":2.48,"J":8.19,"Iw":677000,"u":0.883,"x":24.1},{"name":"IPE240","fam":"IPE","type":"I","h":240,"b":120,"tw":6.2,"tf":9.8,"r":15,"A":39.1,"Iy":3890,"Iz":284,"Zely":324,"Zelz":47.3,"Sy":367,"Sz":73.9,"ry":9.97,"rz":2.69,"J":10.6,"Iw":1120000,"u":0.886,"x":25},{"name":"IPE270","fam":"IPE","type":"I","h":270,"b":135,"tw":6.6,"tf":10.2,"r":15,"A":45.9,"Iy":5790,"Iz":420,"Zely":429,"Zelz":62.2,"Sy":484,"Sz":97.4,"ry":11.2,"rz":3.02,"J":15.3,"Iw":2080000,"u":0.884,"x":25.5},{"name":"IPE300","fam":"IPE","type":"I","h":300,"b":150,"tw":7.1,"tf":10.7,"r":15,"A":53.8,"Iy":8360,"Iz":604,"Zely":557,"Zelz":80.5,"Sy":628,"Sz":126,"ry":12.5,"rz":3.35,"J":20.2,"Iw":3560000,"u":0.882,"x":26.7},{"name":"IPE330","fam":"IPE","type":"I","h":330,"b":160,"tw":7.5,"tf":11.5,"r":18,"A":62.6,"Iy":11800,"Iz":788,"Zely":713,"Zelz":98.5,"Sy":804,"Sz":154,"ry":13.7,"rz":3.55,"J":28.3,"Iw":5540000,"u":0.883,"x":26.8},{"name":"IPE360","fam":"IPE","type":"I","h":360,"b":170,"tw":8,"tf":12.7,"r":18,"A":72.7,"Iy":16300,"Iz":1040,"Zely":904,"Zelz":122,"Sy":1010,"Sz":191,"ry":15,"rz":3.79,"J":37.9,"Iw":8420000,"u":0.88,"x":27.2},{"name":"IPE400","fam":"IPE","type":"I","h":400,"b":180,"tw":8.6,"tf":13.5,"r":21,"A":84.5,"Iy":23200,"Iz":1320,"Zely":1160,"Zelz":146,"Sy":1300,"Sz":229,"ry":16.6,"rz":3.95,"J":51.1,"Iw":13100000,"u":0.879,"x":28.1},{"name":"IPE450","fam":"IPE","type":"I","h":450,"b":190,"tw":9.4,"tf":14.6,"r":21,"A":98.8,"Iy":33700,"Iz":1680,"Zely":1500,"Zelz":176,"Sy":1700,"Sz":276,"ry":18.5,"rz":4.12,"J":66.3,"Iw":20400000,"u":0.878,"x":30.1},{"name":"IPE500","fam":"IPE","type":"I","h":500,"b":200,"tw":10.2,"tf":16,"r":21,"A":116,"Iy":48200,"Iz":2140,"Zely":1930,"Zelz":214,"Sy":2190,"Sz":336,"ry":20.4,"rz":4.31,"J":91.9,"Iw":33100000,"u":0.873,"x":30.8},{"name":"IPE550","fam":"IPE","type":"I","h":550,"b":210,"tw":11.1,"tf":17.2,"r":24,"A":134,"Iy":67100,"Iz":2670,"Zely":2440,"Zelz":254,"Sy":2780,"Sz":400,"ry":22.3,"rz":4.45,"J":123,"Iw":49800000,"u":0.874,"x":31.5},{"name":"IPE600","fam":"IPE","type":"I","h":600,"b":220,"tw":12,"tf":19,"r":24,"A":156,"Iy":92100,"Iz":3390,"Zely":3070,"Zelz":308,"Sy":3510,"Sz":485,"ry":24.3,"rz":4.66,"J":165,"Iw":72700000,"u":0.872,"x":32},{"name":"HEA100","fam":"HEA","type":"I","h":96,"b":100,"tw":5,"tf":8,"r":12,"A":21.2,"Iy":349,"Iz":134,"Zely":72.8,"Zelz":26.8,"Sy":83,"Sz":41.2,"ry":4.06,"rz":2.51,"J":10.3,"Iw":173000,"u":0.836,"x":7.1},{"name":"HEA120","fam":"HEA","type":"I","h":114,"b":120,"tw":5,"tf":8,"r":12,"A":25.3,"Iy":606,"Iz":231,"Zely":106,"Zelz":38.5,"Sy":119,"Sz":58.8,"ry":4.89,"rz":3.02,"J":11.9,"Iw":374000,"u":0.836,"x":8.7},{"name":"HEA140","fam":"HEA","type":"I","h":133,"b":140,"tw":5.5,"tf":8.5,"r":12,"A":31.4,"Iy":1030,"Iz":389,"Zely":155,"Zelz":55.6,"Sy":173,"Sz":84.8,"ry":5.73,"rz":3.52,"J":16.1,"Iw":771000,"u":0.836,"x":9.8},{"name":"HEA160","fam":"HEA","type":"I","h":152,"b":160,"tw":6,"tf":9,"r":15,"A":38.8,"Iy":1670,"Iz":616,"Zely":220,"Zelz":77,"Sy":245,"Sz":117,"ry":6.57,"rz":3.98,"J":22,"Iw":1490000,"u":0.838,"x":10.7},{"name":"HEA180","fam":"HEA","type":"I","h":171,"b":180,"tw":6,"tf":9.5,"r":15,"A":45.3,"Iy":2510,"Iz":925,"Zely":294,"Zelz":103,"Sy":331,"Sz":156,"ry":7.45,"rz":4.52,"J":26,"Iw":2680000,"u":0.848,"x":12.1},{"name":"HEA200","fam":"HEA","type":"I","h":190,"b":200,"tw":6.5,"tf":10,"r":18,"A":53.8,"Iy":3690,"Iz":1340,"Zely":389,"Zelz":134,"Sy":430,"Sz":203,"ry":8.28,"rz":4.98,"J":35.1,"Iw":4750000,"u":0.842,"x":12.6},{"name":"HEA220","fam":"HEA","type":"I","h":210,"b":220,"tw":7,"tf":11,"r":18,"A":64.3,"Iy":5410,"Iz":1950,"Zely":515,"Zelz":177,"Sy":569,"Sz":270,"ry":9.17,"rz":5.51,"J":49.1,"Iw":8330000,"u":0.843,"x":12.9},{"name":"HEA240","fam":"HEA","type":"I","h":230,"b":240,"tw":7.5,"tf":12,"r":21,"A":76.8,"Iy":7760,"Iz":2770,"Zely":675,"Zelz":231,"Sy":745,"Sz":352,"ry":10.1,"rz":6.01,"J":65.3,"Iw":14000000,"u":0.845,"x":13.4},{"name":"HEA260","fam":"HEA","type":"I","h":250,"b":260,"tw":7.5,"tf":12.5,"r":24,"A":86.8,"Iy":10450,"Iz":3670,"Zely":836,"Zelz":282,"Sy":930,"Sz":430,"ry":11,"rz":6.5,"J":73.4,"Iw":20300000,"u":0.852,"x":14.6},{"name":"HEA280","fam":"HEA","type":"I","h":270,"b":280,"tw":8,"tf":13,"r":24,"A":97.3,"Iy":13700,"Iz":4760,"Zely":1010,"Zelz":340,"Sy":1130,"Sz":519,"ry":11.9,"rz":6.99,"J":91.5,"Iw":28700000,"u":0.854,"x":15},{"name":"HEA300","fam":"HEA","type":"I","h":290,"b":300,"tw":8.5,"tf":14,"r":27,"A":113,"Iy":18200,"Iz":6310,"Zely":1260,"Zelz":421,"Sy":1410,"Sz":642,"ry":12.7,"rz":7.49,"J":122,"Iw":42400000,"u":0.855,"x":15},{"name":"HEA320","fam":"HEA","type":"I","h":310,"b":300,"tw":9,"tf":15.5,"r":27,"A":124,"Iy":21400,"Iz":6980,"Zely":1380,"Zelz":465,"Sy":1540,"Sz":711,"ry":13.1,"rz":7.5,"J":151,"Iw":46800000,"u":0.832,"x":15.1},{"name":"HEA340","fam":"HEA","type":"I","h":330,"b":300,"tw":9.5,"tf":16.5,"r":27,"A":133,"Iy":24700,"Iz":7630,"Zely":1500,"Zelz":508,"Sy":1680,"Sz":775,"ry":13.6,"rz":7.57,"J":175,"Iw":51100000,"u":0.818,"x":15.5},{"name":"HEA360","fam":"HEA","type":"I","h":350,"b":300,"tw":10,"tf":17.5,"r":27,"A":143,"Iy":28100,"Iz":8290,"Zely":1610,"Zelz":553,"Sy":1810,"Sz":843,"ry":14,"rz":7.61,"J":202,"Iw":55100000,"u":0.8,"x":15.8},{"name":"HEA400","fam":"HEA","type":"I","h":390,"b":300,"tw":11,"tf":19,"r":27,"A":159,"Iy":35100,"Iz":8560,"Zely":1800,"Zelz":571,"Sy":2030,"Sz":872,"ry":14.9,"rz":7.34,"J":238,"Iw":56600000,"u":0.774,"x":17.2},{"name":"HEA450","fam":"HEA","type":"I","h":440,"b":300,"tw":11.5,"tf":21,"r":27,"A":178,"Iy":46200,"Iz":8330,"Zely":2100,"Zelz":555,"Sy":2400,"Sz":855,"ry":16.1,"rz":6.84,"J":282,"Iw":55000000,"u":0.763,"x":18.8},{"name":"HEA500","fam":"HEA","type":"I","h":490,"b":300,"tw":12,"tf":23,"r":27,"A":198,"Iy":58700,"Iz":8120,"Zely":2400,"Zelz":541,"Sy":2750,"Sz":836,"ry":17.2,"rz":6.4,"J":332,"Iw":53300000,"u":0.743,"x":20.4},{"name":"HEA550","fam":"HEA","type":"I","h":540,"b":300,"tw":12.5,"tf":24.5,"r":27,"A":212,"Iy":72200,"Iz":8590,"Zely":2670,"Zelz":573,"Sy":3060,"Sz":886,"ry":18.5,"rz":6.37,"J":381,"Iw":55500000,"u":0.725,"x":21.8},{"name":"HEA600","fam":"HEA","type":"I","h":590,"b":300,"tw":13,"tf":25,"r":27,"A":226,"Iy":85000,"Iz":8560,"Zely":2880,"Zelz":571,"Sy":3310,"Sz":884,"ry":19.4,"rz":6.15,"J":394,"Iw":54800000,"u":0.701,"x":24.2},{"name":"HEB100","fam":"HEB","type":"I","h":100,"b":100,"tw":6,"tf":10,"r":12,"A":26,"Iy":450,"Iz":167,"Zely":90,"Zelz":33.5,"Sy":104,"Sz":52,"ry":4.16,"rz":2.53,"J":19.2,"Iw":223000,"u":0.84,"x":5.9},{"name":"HEB120","fam":"HEB","type":"I","h":120,"b":120,"tw":6.5,"tf":11,"r":12,"A":34,"Iy":864,"Iz":318,"Zely":144,"Zelz":52.9,"Sy":165,"Sz":81.3,"ry":5.04,"rz":3.06,"J":31,"Iw":519000,"u":0.841,"x":6.5},{"name":"HEB140","fam":"HEB","type":"I","h":140,"b":140,"tw":7,"tf":12,"r":12,"A":43,"Iy":1510,"Iz":550,"Zely":216,"Zelz":78.5,"Sy":245,"Sz":120,"ry":5.93,"rz":3.58,"J":48.3,"Iw":1090000,"u":0.843,"x":6.8},{"name":"HEB160","fam":"HEB","type":"I","h":160,"b":160,"tw":8,"tf":13,"r":15,"A":54.3,"Iy":2490,"Iz":889,"Zely":311,"Zelz":111,"Sy":354,"Sz":170,"ry":6.78,"rz":4.05,"J":72.7,"Iw":2100000,"u":0.843,"x":7.2},{"name":"HEB180","fam":"HEB","type":"I","h":180,"b":180,"tw":8.5,"tf":14,"r":15,"A":65.3,"Iy":3830,"Iz":1360,"Zely":426,"Zelz":151,"Sy":481,"Sz":231,"ry":7.66,"rz":4.57,"J":97.2,"Iw":3840000,"u":0.844,"x":7.7},{"name":"HEB200","fam":"HEB","type":"I","h":200,"b":200,"tw":9,"tf":15,"r":18,"A":78.1,"Iy":5700,"Iz":2000,"Zely":570,"Zelz":200,"Sy":643,"Sz":307,"ry":8.54,"rz":5.06,"J":134,"Iw":6870000,"u":0.847,"x":8},{"name":"HEB220","fam":"HEB","type":"I","h":220,"b":220,"tw":9.5,"tf":16,"r":18,"A":91,"Iy":8090,"Iz":2840,"Zely":736,"Zelz":258,"Sy":828,"Sz":396,"ry":9.43,"rz":5.59,"J":177,"Iw":12000000,"u":0.848,"x":8.3},{"name":"HEB240","fam":"HEB","type":"I","h":240,"b":240,"tw":10,"tf":17,"r":21,"A":106,"Iy":11300,"Iz":3920,"Zely":938,"Zelz":327,"Sy":1050,"Sz":502,"ry":10.3,"rz":6.08,"J":230,"Iw":19700000,"u":0.847,"x":8.6},{"name":"HEB260","fam":"HEB","type":"I","h":260,"b":260,"tw":10,"tf":17.5,"r":24,"A":118,"Iy":14900,"Iz":5130,"Zely":1150,"Zelz":395,"Sy":1290,"Sz":603,"ry":11.2,"rz":6.58,"J":274,"Iw":28200000,"u":0.854,"x":9},{"name":"HEB280","fam":"HEB","type":"I","h":280,"b":280,"tw":10.5,"tf":18,"r":24,"A":131,"Iy":19300,"Iz":6590,"Zely":1380,"Zelz":471,"Sy":1530,"Sz":718,"ry":12.1,"rz":7.09,"J":332,"Iw":39700000,"u":0.851,"x":9.3},{"name":"HEB300","fam":"HEB","type":"I","h":300,"b":300,"tw":11,"tf":19,"r":27,"A":149,"Iy":25200,"Iz":8560,"Zely":1680,"Zelz":571,"Sy":1860,"Sz":870,"ry":13,"rz":7.58,"J":431,"Iw":57300000,"u":0.85,"x":9.4},{"name":"HEB320","fam":"HEB","type":"I","h":320,"b":300,"tw":11.5,"tf":20.5,"r":27,"A":161,"Iy":30800,"Iz":9240,"Zely":1930,"Zelz":616,"Sy":2140,"Sz":938,"ry":13.8,"rz":7.57,"J":555,"Iw":61800000,"u":0.862,"x":9.1},{"name":"HEB340","fam":"HEB","type":"I","h":340,"b":300,"tw":12,"tf":21.5,"r":27,"A":171,"Iy":36700,"Iz":9690,"Zely":2160,"Zelz":646,"Sy":2400,"Sz":985,"ry":14.6,"rz":7.53,"J":623,"Iw":64700000,"u":0.87,"x":9.4},{"name":"HEB360","fam":"HEB","type":"I","h":360,"b":300,"tw":12.5,"tf":22.5,"r":27,"A":181,"Iy":43200,"Iz":10100,"Zely":2400,"Zelz":676,"Sy":2670,"Sz":1030,"ry":15.4,"rz":7.49,"J":703,"Iw":67400000,"u":0.875,"x":9.7},{"name":"HEB400","fam":"HEB","type":"I","h":400,"b":300,"tw":13.5,"tf":24,"r":27,"A":198,"Iy":57700,"Iz":10800,"Zely":2880,"Zelz":721,"Sy":3230,"Sz":1100,"ry":17.1,"rz":7.4,"J":875,"Iw":71500000,"u":0.884,"x":10.1},{"name":"HEB450","fam":"HEB","type":"I","h":450,"b":300,"tw":14,"tf":26,"r":27,"A":218,"Iy":79800,"Iz":11700,"Zely":3550,"Zelz":781,"Sy":3980,"Sz":1190,"ry":19.1,"rz":7.33,"J":1100,"Iw":77600000,"u":0.892,"x":10.7},{"name":"HEB500","fam":"HEB","type":"I","h":500,"b":300,"tw":14.5,"tf":28,"r":27,"A":239,"Iy":107200,"Iz":12600,"Zely":4290,"Zelz":842,"Sy":4810,"Sz":1280,"ry":21.2,"rz":7.27,"J":1360,"Iw":83300000,"u":0.895,"x":11.2},{"name":"HEB550","fam":"HEB","type":"I","h":550,"b":300,"tw":15,"tf":29,"r":27,"A":254,"Iy":136700,"Iz":13100,"Zely":4970,"Zelz":873,"Sy":5590,"Sz":1330,"ry":23.2,"rz":7.19,"J":1540,"Iw":86200000,"u":0.896,"x":12},{"name":"HEB600","fam":"HEB","type":"I","h":600,"b":300,"tw":15.5,"tf":30,"r":27,"A":270,"Iy":171000,"Iz":13700,"Zely":5700,"Zelz":914,"Sy":6420,"Sz":1390,"ry":25.2,"rz":7.13,"J":1750,"Iw":90100000,"u":0.895,"x":12.7},{"name":"CHS48.3x3.2","fam":"CHS","type":"CHS","h":48.3,"b":48.3,"tw":3.2,"tf":3.2,"r":0,"A":4.53,"Iy":11.8,"Iz":11.8,"Zely":4.89,"Zelz":4.89,"Sy":6.46,"Sz":6.46,"ry":1.61,"rz":1.61,"J":23.6,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS60.3x3.2","fam":"CHS","type":"CHS","h":60.3,"b":60.3,"tw":3.2,"tf":3.2,"r":0,"A":5.74,"Iy":23.5,"Iz":23.5,"Zely":7.8,"Zelz":7.8,"Sy":10.3,"Sz":10.3,"ry":2.02,"rz":2.02,"J":47,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS76.1x3.2","fam":"CHS","type":"CHS","h":76.1,"b":76.1,"tw":3.2,"tf":3.2,"r":0,"A":7.33,"Iy":49.3,"Iz":49.3,"Zely":12.9,"Zelz":12.9,"Sy":17.1,"Sz":17.1,"ry":2.59,"rz":2.59,"J":98.6,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS88.9x3.2","fam":"CHS","type":"CHS","h":88.9,"b":88.9,"tw":3.2,"tf":3.2,"r":0,"A":8.62,"Iy":80.8,"Iz":80.8,"Zely":18.2,"Zelz":18.2,"Sy":24,"Sz":24,"ry":3.06,"rz":3.06,"J":162,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS114.3x3.6","fam":"CHS","type":"CHS","h":114.3,"b":114.3,"tw":3.6,"tf":3.6,"r":0,"A":12.5,"Iy":194,"Iz":194,"Zely":34,"Zelz":34,"Sy":44.8,"Sz":44.8,"ry":3.94,"rz":3.94,"J":388,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS139.7x4.0","fam":"CHS","type":"CHS","h":139.7,"b":139.7,"tw":4,"tf":4,"r":0,"A":17.1,"Iy":395,"Iz":395,"Zely":56.6,"Zelz":56.6,"Sy":74.6,"Sz":74.6,"ry":4.8,"rz":4.8,"J":790,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS168.3x4.5","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"tw":4.5,"tf":4.5,"r":0,"A":23.2,"Iy":788,"Iz":788,"Zely":93.6,"Zelz":93.6,"Sy":123,"Sz":123,"ry":5.83,"rz":5.83,"J":1576,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS168.3x6.3","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"tw":6.3,"tf":6.3,"r":0,"A":32.1,"Iy":1070,"Iz":1070,"Zely":127,"Zelz":127,"Sy":167,"Sz":167,"ry":5.77,"rz":5.77,"J":2140,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS219.1x5.0","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"tw":5,"tf":5,"r":0,"A":33.6,"Iy":1930,"Iz":1930,"Zely":176,"Zelz":176,"Sy":232,"Sz":232,"ry":7.57,"rz":7.57,"J":3860,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS219.1x6.3","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"tw":6.3,"tf":6.3,"r":0,"A":42.1,"Iy":2390,"Iz":2390,"Zely":218,"Zelz":218,"Sy":287,"Sz":287,"ry":7.54,"rz":7.54,"J":4780,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS273.0x5.0","fam":"CHS","type":"CHS","h":273,"b":273,"tw":5,"tf":5,"r":0,"A":42.1,"Iy":3800,"Iz":3800,"Zely":278,"Zelz":278,"Sy":366,"Sz":366,"ry":9.5,"rz":9.5,"J":7600,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS273.0x6.3","fam":"CHS","type":"CHS","h":273,"b":273,"tw":6.3,"tf":6.3,"r":0,"A":52.8,"Iy":4720,"Iz":4720,"Zely":346,"Zelz":346,"Sy":455,"Sz":455,"ry":9.46,"rz":9.46,"J":9440,"Iw":0,"u":0.9,"x":1000000},{"name":"SHS50x50x3.0","fam":"SHS","type":"RHS","h":50,"b":50,"tw":3,"tf":3,"r":3,"A":5.34,"Iy":19.6,"Iz":19.6,"Zely":7.84,"Zelz":7.84,"Sy":9.41,"Sz":9.41,"ry":1.92,"rz":1.92,"J":30.7,"Iw":0,"u":0.9,"x":70},{"name":"SHS60x60x3.0","fam":"SHS","type":"RHS","h":60,"b":60,"tw":3,"tf":3,"r":3,"A":6.64,"Iy":36.9,"Iz":36.9,"Zely":12.3,"Zelz":12.3,"Sy":14.7,"Sz":14.7,"ry":2.35,"rz":2.35,"J":58,"Iw":0,"u":0.9,"x":70},{"name":"SHS70x70x3.0","fam":"SHS","type":"RHS","h":70,"b":70,"tw":3,"tf":3,"r":3,"A":7.94,"Iy":60.4,"Iz":60.4,"Zely":17.3,"Zelz":17.3,"Sy":20.6,"Sz":20.6,"ry":2.76,"rz":2.76,"J":94.7,"Iw":0,"u":0.9,"x":70},{"name":"SHS80x80x3.0","fam":"SHS","type":"RHS","h":80,"b":80,"tw":3,"tf":3,"r":3,"A":9.24,"Iy":92.6,"Iz":92.6,"Zely":23.1,"Zelz":23.1,"Sy":27.5,"Sz":27.5,"ry":3.17,"rz":3.17,"J":145,"Iw":0,"u":0.9,"x":70},{"name":"SHS90x90x4.0","fam":"SHS","type":"RHS","h":90,"b":90,"tw":4,"tf":4,"r":4,"A":13.6,"Iy":168,"Iz":168,"Zely":37.3,"Zelz":37.3,"Sy":44.4,"Sz":44.4,"ry":3.51,"rz":3.51,"J":266,"Iw":0,"u":0.9,"x":70},{"name":"SHS100x100x4.0","fam":"SHS","type":"RHS","h":100,"b":100,"tw":4,"tf":4,"r":4,"A":15.3,"Iy":236,"Iz":236,"Zely":47.2,"Zelz":47.2,"Sy":56.1,"Sz":56.1,"ry":3.92,"rz":3.92,"J":374,"Iw":0,"u":0.9,"x":70},{"name":"SHS120x120x5.0","fam":"SHS","type":"RHS","h":120,"b":120,"tw":5,"tf":5,"r":5,"A":22.7,"Iy":516,"Iz":516,"Zely":86,"Zelz":86,"Sy":102,"Sz":102,"ry":4.77,"rz":4.77,"J":811,"Iw":0,"u":0.9,"x":70},{"name":"SHS150x150x5.0","fam":"SHS","type":"RHS","h":150,"b":150,"tw":5,"tf":5,"r":5,"A":28.7,"Iy":1030,"Iz":1030,"Zely":137,"Zelz":137,"Sy":163,"Sz":163,"ry":5.99,"rz":5.99,"J":1610,"Iw":0,"u":0.9,"x":70},{"name":"SHS150x150x6.3","fam":"SHS","type":"RHS","h":150,"b":150,"tw":6.3,"tf":6.3,"r":6.3,"A":35.8,"Iy":1270,"Iz":1270,"Zely":169,"Zelz":169,"Sy":201,"Sz":201,"ry":5.95,"rz":5.95,"J":1980,"Iw":0,"u":0.9,"x":70},{"name":"SHS200x200x6.3","fam":"SHS","type":"RHS","h":200,"b":200,"tw":6.3,"tf":6.3,"r":6.3,"A":48.6,"Iy":3080,"Iz":3080,"Zely":308,"Zelz":308,"Sy":366,"Sz":366,"ry":7.96,"rz":7.96,"J":4790,"Iw":0,"u":0.9,"x":70},{"name":"RHS60x40x3.0","fam":"RHS","type":"RHS","h":60,"b":40,"tw":3,"tf":3,"r":3,"A":5.54,"Iy":27,"Iz":14.1,"Zely":9,"Zelz":7.06,"Sy":10.8,"Sz":8.42,"ry":2.21,"rz":1.6,"J":29.1,"Iw":0,"u":0.9,"x":70},{"name":"RHS80x40x3.0","fam":"RHS","type":"RHS","h":80,"b":40,"tw":3,"tf":3,"r":3,"A":6.64,"Iy":51.1,"Iz":16.9,"Zely":12.8,"Zelz":8.45,"Sy":15.3,"Sz":10.1,"ry":2.77,"rz":1.6,"J":37,"Iw":0,"u":0.9,"x":70},{"name":"RHS90x50x3.0","fam":"RHS","type":"RHS","h":90,"b":50,"tw":3,"tf":3,"r":3,"A":7.94,"Iy":86,"Iz":32.3,"Zely":19.1,"Zelz":12.9,"Sy":22.8,"Sz":15.4,"ry":3.29,"rz":2.02,"J":62.2,"Iw":0,"u":0.9,"x":70},{"name":"RHS100x50x4.0","fam":"RHS","type":"RHS","h":100,"b":50,"tw":4,"tf":4,"r":4,"A":11.3,"Iy":161,"Iz":47.4,"Zely":32.2,"Zelz":19,"Sy":38.4,"Sz":22.6,"ry":3.78,"rz":2.05,"J":103,"Iw":0,"u":0.9,"x":70},{"name":"RHS120x60x5.0","fam":"RHS","type":"RHS","h":120,"b":60,"tw":5,"tf":5,"r":5,"A":16.7,"Iy":348,"Iz":103,"Zely":58,"Zelz":34.3,"Sy":69,"Sz":40.7,"ry":4.56,"rz":2.48,"J":221,"Iw":0,"u":0.9,"x":70},{"name":"RHS150x100x5.0","fam":"RHS","type":"RHS","h":150,"b":100,"tw":5,"tf":5,"r":5,"A":23.7,"Iy":788,"Iz":401,"Zely":105,"Zelz":80.2,"Sy":125,"Sz":95,"ry":5.77,"rz":4.11,"J":679,"Iw":0,"u":0.9,"x":70},{"name":"RHS150x100x6.3","fam":"RHS","type":"RHS","h":150,"b":100,"tw":6.3,"tf":6.3,"r":6.3,"A":29.6,"Iy":969,"Iz":489,"Zely":129,"Zelz":97.8,"Sy":154,"Sz":116,"ry":5.72,"rz":4.06,"J":828,"Iw":0,"u":0.9,"x":70},{"name":"RHS200x100x6.3","fam":"RHS","type":"RHS","h":200,"b":100,"tw":6.3,"tf":6.3,"r":6.3,"A":35.8,"Iy":2030,"Iz":660,"Zely":203,"Zelz":132,"Sy":242,"Sz":157,"ry":7.53,"rz":4.3,"J":1140,"Iw":0,"u":0.9,"x":70},{"name":"RHS200x150x6.3","fam":"RHS","type":"RHS","h":200,"b":150,"tw":6.3,"tf":6.3,"r":6.3,"A":42.2,"Iy":2510,"Iz":1440,"Zely":251,"Zelz":192,"Sy":299,"Sz":228,"ry":7.71,"rz":5.84,"J":2360,"Iw":0,"u":0.9,"x":70},{"name":"EA 50x50x6","fam":"EA","type":"angle","h":50,"b":50,"tw":6,"tf":6,"A":5.64,"Iy":12.9,"Iz":12.9,"Zely":3.6,"Zelz":0,"Sy":0,"Sz":0,"ry":1.515,"rz":0.99,"J":0.68,"Iw":0,"u":0.9,"x":8.333333333333334,"computed":true},{"name":"EA 50x50x5","fam":"EA","type":"angle","h":50,"b":50,"tw":5,"tf":5,"A":4.75,"Iy":10.9,"Iz":10.9,"Zely":3.1,"Zelz":0,"Sy":0,"Sz":0,"ry":1.515,"rz":0.99,"J":0.4,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 60x60x6","fam":"EA","type":"angle","h":60,"b":60,"tw":6,"tf":6,"A":6.84,"Iy":22.6,"Iz":22.6,"Zely":5.3,"Zelz":0,"Sy":0,"Sz":0,"ry":1.818,"rz":1.188,"J":0.82,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 70x70x6","fam":"EA","type":"angle","h":70,"b":70,"tw":6,"tf":6,"A":8.04,"Iy":36.2,"Iz":36.2,"Zely":7.3,"Zelz":0,"Sy":0,"Sz":0,"ry":2.121,"rz":1.386,"J":0.96,"Iw":0,"u":0.9,"x":11.666666666666666,"computed":true},{"name":"EA 75x75x8","fam":"EA","type":"angle","h":75,"b":75,"tw":8,"tf":8,"A":11.36,"Iy":58.6,"Iz":58.6,"Zely":11,"Zelz":0,"Sy":0,"Sz":0,"ry":2.272,"rz":1.485,"J":2.42,"Iw":0,"u":0.9,"x":9.375,"computed":true},{"name":"EA 80x80x8","fam":"EA","type":"angle","h":80,"b":80,"tw":8,"tf":8,"A":12.16,"Iy":71.4,"Iz":71.4,"Zely":12.6,"Zelz":0,"Sy":0,"Sz":0,"ry":2.424,"rz":1.584,"J":2.59,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 90x90x8","fam":"EA","type":"angle","h":90,"b":90,"tw":8,"tf":8,"A":13.76,"Iy":102.3,"Iz":102.3,"Zely":16,"Zelz":0,"Sy":0,"Sz":0,"ry":2.727,"rz":1.782,"J":2.94,"Iw":0,"u":0.9,"x":11.25,"computed":true},{"name":"EA 100x100x8","fam":"EA","type":"angle","h":100,"b":100,"tw":8,"tf":8,"A":15.36,"Iy":141,"Iz":141,"Zely":19.9,"Zelz":0,"Sy":0,"Sz":0,"ry":3.03,"rz":1.98,"J":3.28,"Iw":0,"u":0.9,"x":12.5,"computed":true},{"name":"EA 100x100x10","fam":"EA","type":"angle","h":100,"b":100,"tw":10,"tf":10,"A":19,"Iy":174.4,"Iz":174.4,"Zely":24.6,"Zelz":0,"Sy":0,"Sz":0,"ry":3.03,"rz":1.98,"J":6.33,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 120x120x10","fam":"EA","type":"angle","h":120,"b":120,"tw":10,"tf":10,"A":23,"Iy":304.1,"Iz":304.1,"Zely":35.7,"Zelz":0,"Sy":0,"Sz":0,"ry":3.636,"rz":2.376,"J":7.67,"Iw":0,"u":0.9,"x":12,"computed":true},{"name":"EA 150x150x12","fam":"EA","type":"angle","h":150,"b":150,"tw":12,"tf":12,"A":34.56,"Iy":713.9,"Iz":713.9,"Zely":67,"Zelz":0,"Sy":0,"Sz":0,"ry":4.545,"rz":2.97,"J":16.59,"Iw":0,"u":0.9,"x":12.5,"computed":true}];
 /* ===================== KHAVS UI v2 ===================== */
 const $=id=>document.getElementById(id);
@@ -1250,13 +1626,19 @@ function defaultState(){return{
   lib2Fam:'UC', lib2Sec:'UC 203x203x46',
   gSpan:6, gHeight:4, gRise:1, gDepth:2.2, gPanel:1.5, gBase:'pinned',
   spacing:1.5, gAreaL:0.15, gUDL:0, selfWt:true, qAreaL:0.25, qUDL:0, xUDL:0,
+  PGt:0, PQt:0,
   gP:200, qP:150,
   windUnits:'udl', w1:0, w2:0.6, wcol:2, wr1:0, wr2:2, ww:2, wl:1,
   ldN:0, ldV:40, ldMx:60, ldMy:0, LEy:0, LEz:0, LLTd:1.5,
   LLT:1.5, LLTbot:0, Kin:1.5, Kout:1.0, chordRestr:1.5, botRestr:3.0,
   limLive:360, limTotal:200, limSway:300,
   grade:'S275', ys:350,
-  curveY:'a', curveZ:'b', gM0:1.0, gM1:1.0, mLT:1.0, forceCls:0
+  boltSize:'M20', boltGrade:'8.8', weldS:10,
+  bpB:320, bpD:320, bpT:25, fck:30, nLine:2, eBolt:45, mBolt:55, hef:375, anchorType:'plate',
+  bN1:400, bM1:20, bV1:30, bN2:-50, bM2:15, bV2:20,
+  mpB:200, mpT:20, gaugeG:100, exRow:40, p1Row:60, pitchRow:80, nBelow:1,
+  mcM:90, mcV:80, mcN:0,
+  curveY:'a', curveZ:'b', gM0:1.0, gM1:1.0, mLT:1.0, forceCls:0, xferNote:''
 };}
 let STATE=defaultState();
 
@@ -1270,34 +1652,56 @@ function redo(){ if(!future.length)return; past.push(JSON.stringify(STATE)); STA
   suppress=true; syncInputs(); suppress=false; render(); updateHistBtns(); }
 function updateHistBtns(){ $('btnUndo').disabled=!past.length; $('btnRedo').disabled=!future.length; }
 
+/* ---- analysis→connection handoff ---- */
+let TRANSFER=null;   // {sourceLabel, sectionName, sec2Name, options:[{id,label,target,payload}]}
+window.__khavsTransfer=function(idx){
+  if(!TRANSFER||!TRANSFER.options[idx])return;
+  const opt=TRANSFER.options[idx];
+  snapshot();
+  if(opt.section){ STATE.source='library'; STATE.libFam=opt.section.fam; STATE.libSec=opt.section.name; }
+  Object.assign(STATE, opt.payload);
+  STATE.xferNote=`Actions imported from ${TRANSFER.sourceLabel} → ${opt.label.replace('→ ','')}. Review restraint/geometry inputs before relying on the result.`;
+  STATE.mode=opt.target;
+  suppress=true; syncInputs(); suppress=false; render();
+  const out=$('output'); if(out) out.scrollTop=0;
+};
+
 const GRADES={ BS5950:['S275','S355','S460'], EC3:['S235','S275','S355','S460'] };
 const CURVES={ BS5950:['a','b','c','d'], EC3:['a0','a','b','c','d'] };
 const MODE_HINT={
   ss:'Single‑span beam, both ends simply supported. Gravity + two wind scenarios (W₁ pressure / W₂ uplift).',
   ff:'Single‑span beam with both ends fixed (encastré). Support hogging is checked against the bottom‑flange restraint.',
+  cant:'Cantilever fixed at the root, free at the tip. Root hogging puts the bottom flange in compression — its restraint governs LTB. Tip point loads supported.',
   column:'Single column: axial dead/live at the top + lateral wind bending about the major axis.',
   portal:'Single‑bay portal frame (matrix stiffness analysis). Windward pressure + leeward suction walls, roof pressure/uplift scenarios.',
   truss:'Attic/parallel‑chord truss by the equivalent‑depth method: chord force = M/d, web force from shear.',
+  base:'Column base plate under axial ± moment ± shear, with holding‑down anchors, concrete cone/bond and embedment. Two load cases (max compression & uplift).',
+  conn:'Bolted extended end‑plate moment connection (beam side): elastic bolt‑row distribution, T‑stub plate bending, compression flange, bolt shear/combined and welds.',
   direct:'Check one member against directly entered factored forces.'};
 const MEMBER_HINT={
   ss:'Top‑flange restraint = purlin/joist spacing. Bottom‑flange restraint is used when moment reverses under wind uplift (0 = full span, conservative).',
   ff:'Support hogging puts the bottom flange in compression — bottom‑flange restraint applies there and under uplift (0 = full span).',
+  cant:'Top‑flange restraint over the span; the root hogging (bottom flange in compression) is checked against the bottom‑flange restraint (0 = full cantilever length).',
   column:'Effective lengths LE = K·h. Pinned top & bottom: K ≈ 1.0 both. Cantilever: K ≈ 2.0 in‑plane.',
   portal:'Columns: LE = K·h (pinned‑base portal, in‑plane K ≈ 1.5). Rafter uses purlin spacing out‑of‑plane; uplift reversal uses the bottom‑flange restraint.',
   truss:'Chords are checked in axial: in‑plane LE = panel; out‑of‑plane = restraint spacing. Wind uplift reverses chord forces — the bottom chord is checked in compression.',
   direct:'Effective lengths for flexural buckling and the segment length between lateral restraints for LTB. Enter 0 to skip.'};
 const SPACING_LABEL={ss:'Load width (beam spacing) s (m)',ff:'Load width (beam spacing) s (m)',
-  portal:'Frame spacing s (m)',truss:'Truss spacing s (m)'};
+  cant:'Load width (spacing) s (m)',portal:'Frame spacing s (m)',truss:'Truss spacing s (m)'};
 
 /* ==================== INPUT WIRING ==================== */
 function initInputs(){
   $('segMode').querySelectorAll('button').forEach(b=>b.onclick=()=>{
-    STATE.mode=b.dataset.mode;
+    STATE.mode=b.dataset.mode; STATE.xferNote='';
     if(STATE.mode!=='direct'){ if(STATE.source==='cold') STATE.source='library'; if(STATE.code==='BS5950-5') STATE.code='BS5950'; }
     if(STATE.mode==='truss' && !['EA','SHS','CHS','RHS'].includes(STATE.lib2Fam)){
       STATE.lib2Fam='EA'; STATE.lib2Sec=(LIBRARY.find(s=>s.fam==='EA')||{}).name; }
     if(STATE.mode==='portal' && STATE.lib2Fam==='EA'){
       STATE.lib2Fam='UC'; STATE.lib2Sec='UC 203x203x46'; }
+    if(STATE.mode==='base' && STATE.source==='library' && STATE.libFam!=='UC' && STATE.libFam!=='UB'){
+      STATE.libFam='UC'; STATE.libSec='UC 203x203x46'; }
+    else if(STATE.mode==='base' && STATE.libFam==='UB'){
+      STATE.libFam='UC'; STATE.libSec='UC 203x203x46'; }
     snapshot(); syncInputs(); render();
   });
   $('segCode').querySelectorAll('button').forEach(b=>b.onclick=()=>{
@@ -1315,11 +1719,14 @@ function initInputs(){
   const bind=(id,key,num)=>{ const e=$(id); if(!e)return;
     e.addEventListener('input',()=>{ STATE[key]=num?(parseFloat(e.value)||0):e.value; snapshotDebounced(); render(); });
     e.addEventListener('change',()=>{ snapshot(); }); };
-  ['grade','custShape','coldShape','libFam','libSec','lib2Fam','lib2Sec','curveY','curveZ','gBase','windUnits'].forEach(k=>bind(k,k,false));
+  ['grade','custShape','coldShape','libFam','libSec','lib2Fam','lib2Sec','curveY','curveZ','gBase','windUnits',
+   'boltSize','boltGrade','anchorType'].forEach(k=>bind(k,k,false));
   ['ys','ldN','ldV','ldMx','ldMy','LEy','LEz','LLTd',
-   'gSpan','gHeight','gRise','gDepth','gPanel','spacing','gAreaL','gUDL','qAreaL','qUDL','xUDL',
+   'gSpan','gHeight','gRise','gDepth','gPanel','spacing','gAreaL','gUDL','qAreaL','qUDL','xUDL','PGt','PQt',
    'gP','qP','w1','w2','wcol','wr1','wr2','ww','wl',
    'LLT','LLTbot','Kin','Kout','chordRestr','botRestr','limLive','limTotal','limSway',
+   'weldS','bpB','bpD','bpT','fck','nLine','eBolt','mBolt','hef','bN1','bM1','bV1','bN2','bM2','bV2',
+   'mpB','mpT','gaugeG','exRow','p1Row','pitchRow','nBelow','mcM','mcV','mcN',
    'gM0','gM1','mLT','forceCls'].forEach(k=>bind(k,k,true));
   $('selfWt').addEventListener('change',()=>{ STATE.selfWt=$('selfWt').checked; snapshot(); render(); });
   $('libFam').addEventListener('change',()=>{ populateLibSec(); STATE.libSec=$('libSec').value; snapshot(); render(); });
@@ -1409,20 +1816,27 @@ function syncInputs(){
   $('codeHint').textContent=hints[STATE.code]||'';
   show('btnCF',m==='direct','');
   show('btnColdSrc',m==='direct','');
+  const isConn=(m==='base'||m==='conn');
+  const isBeamLike=['ss','ff','cant'].includes(m);
   // section labels
-  $('secLabel').textContent={ss:'Beam section',ff:'Beam section',column:'Column section',
-    portal:'Rafter section',truss:'Top/bottom chord section',direct:'Section'}[m];
-  show('paneLibrary',STATE.source==='library');
-  show('paneCustom',STATE.source==='custom');
-  show('paneCold',STATE.source==='cold');
+  $('secLabel').textContent={ss:'Beam section',ff:'Beam section',cant:'Beam section',column:'Column section',
+    portal:'Rafter section',truss:'Top/bottom chord section',base:'Column section',conn:'Beam section',direct:'Section'}[m];
+  show('segSource',!isConn,'flex');
+  show('paneLibrary',STATE.source==='library'&&!isConn||isConn);
+  show('paneCustom',STATE.source==='custom'&&!isConn);
+  show('paneCold',STATE.source==='cold'&&!isConn);
+  if(isConn){ // force library section for connections
+    show('paneCustom',false); show('paneCold',false); show('paneLibrary',true);
+  }
   // secondary
   const sec2=(m==='portal'||m==='truss');
   show('grpSec2',sec2);
   if(sec2){ $('sec2Label').textContent=m==='portal'?'Column section':'Web member section';
     $('sec2Hint').textContent=m==='portal'?'Portal columns (library sections).':'Truss internals — angles (EA), SHS or CHS are typical.'; }
   // geometry
-  show('grpGeom',m!=='direct');
-  show('fSpan',['ss','ff','portal','truss'].includes(m));
+  show('grpGeom',!isConn&&m!=='direct');
+  show('fSpan',['ss','ff','cant','portal','truss'].includes(m));
+  if($('fSpan')) $('fSpan').querySelector('label').textContent=(m==='cant')?'Cantilever length L (m)':'Span L (m)';
   show('fHeight',['column','portal'].includes(m));
   show('fRise',m==='portal');
   show('fDepth',m==='truss'); show('fPanel',m==='truss');
@@ -1431,22 +1845,31 @@ function syncInputs(){
   else { $('gBase').options[0].text='Pinned bases'; $('gBase').options[1].text='Fixed bases'; }
   // loads
   show('grpLoadsDirect',m==='direct');
-  show('grpLoads',['ss','ff','portal','truss'].includes(m));
+  show('grpLoads',['ss','ff','cant','portal','truss'].includes(m));
   show('grpAxial',m==='column');
+  show('rowTip',m==='cant');
   if(SPACING_LABEL[m]) $('spacingLabel').textContent=SPACING_LABEL[m];
   // wind
-  show('grpWind',m!=='direct');
-  show('windBeam',['ss','ff','truss'].includes(m));
+  show('grpWind',!isConn&&m!=='direct');
+  show('windBeam',['ss','ff','cant','truss'].includes(m));
   show('windCol',m==='column');
   show('windPortal',m==='portal');
-  show('fWindUnits',['ss','ff','truss'].includes(m));
+  show('fWindUnits',['ss','ff','cant','truss'].includes(m));
+  // connection groups
+  show('grpBolt',isConn);
+  show('grpBase',m==='base');
+  show('grpMConn',m==='conn');
   // member checks
+  show('grpMember',!isConn&&m!=='direct'||m==='direct');
+  show('grpMember',!isConn);
   show('rowLE',m==='direct','grid');
-  show('rowLLT',['ss','ff','portal'].includes(m),'grid');
+  show('rowLLT',['ss','ff','cant','portal'].includes(m),'grid');
   show('rowK',['column','portal'].includes(m),'grid');
   show('rowChord',m==='truss','grid');
+  if($('lltLabel')&&m==='cant') $('lltLabel').textContent='LTB restraint spacing — top flange (m)';
+  if($('lltBotLabel')&&m==='cant') $('lltBotLabel').textContent='Root bottom‑flange restraint (m, 0 = full length)';
   $('memberHint').textContent=MEMBER_HINT[m]||'';
-  show('grpDefl',m!=='direct');
+  show('grpDefl',!isConn&&m!=='direct');
   // material
   const isCF=STATE.code==='BS5950-5';
   show('gradeField',!isCF); show('ysField',isCF);
@@ -1458,17 +1881,22 @@ function syncInputs(){
   const setCv=(id,val)=>{ if(!cv.includes(val)) val=cv[STATE.code==='EC3'?2:1]; STATE[id]=val;
     $(id).innerHTML=cv.map(c=>`<option ${c===val?'selected':''}>${c}</option>`).join(''); };
   setCv('curveY',STATE.curveY); setCv('curveZ',STATE.curveZ);
+  show('advGroup',!isConn);
   show('ecFactors',STATE.code==='EC3','grid');
+  if($('fckLabel')) $('fckLabel').textContent=STATE.code==='EC3'?'Concrete fck (N/mm²)':'Concrete fcu (N/mm²)';
   // reflect values
   populateLibFam(); $('libFam').value=STATE.libFam; populateLibSec();
   populateLib2Fam(); $('lib2Fam').value=STATE.lib2Fam; populateLib2Sec();
   $('custShape').value=STATE.custShape; renderCustDims();
   $('coldShape').value=STATE.coldShape; renderColdDims();
-  ['gSpan','gHeight','gRise','gDepth','gPanel','spacing','gAreaL','gUDL','qAreaL','qUDL','xUDL',
+  ['gSpan','gHeight','gRise','gDepth','gPanel','spacing','gAreaL','gUDL','qAreaL','qUDL','xUDL','PGt','PQt',
    'gP','qP','w1','w2','wcol','wr1','wr2','ww','wl','LLT','LLTbot','Kin','Kout','chordRestr','botRestr',
-   'limLive','limTotal','limSway','ldN','ldV','ldMx','ldMy','LEy','LEz','LLTd','gM0','gM1','mLT','forceCls']
+   'limLive','limTotal','limSway','ldN','ldV','ldMx','ldMy','LEy','LEz','LLTd','gM0','gM1','mLT','forceCls',
+   'weldS','bpB','bpD','bpT','fck','nLine','eBolt','mBolt','hef','bN1','bM1','bV1','bN2','bM2','bV2',
+   'mpB','mpT','gaugeG','exRow','p1Row','pitchRow','nBelow','mcM','mcV','mcN']
    .forEach(k=>{ if($(k)) $(k).value=STATE[k]; });
   $('gBase').value=STATE.gBase; $('windUnits').value=STATE.windUnits;
+  ['boltSize','boltGrade','anchorType'].forEach(k=>{ if($(k)) $(k).value=STATE[k]; });
   $('selfWt').checked=!!STATE.selfWt;
   updateHistBtns();
 }
@@ -1559,6 +1987,19 @@ function verdictHTML(u,label){
     <div class="txt"><b>${pass?'Design adequate':'Design INADEQUATE'}</b><div>${label}</div></div>
     <div class="util-big"><b>${(u*100).toFixed(1)}%</b><span>governing utilisation</span></div></div>`;
 }
+/* handoff panel — sets module TRANSFER and renders the buttons */
+function transferPanelHTML(sourceLabel, options){
+  TRANSFER={sourceLabel, options};
+  if(!options.length) return '';
+  let h=`<div class="tbl-card xfer"><h4>⇢ Send reactions to connection design</h4>
+    <div class="xfer-sub">Push the governing factored reactions from ${sourceLabel} straight into a connection or base‑plate check — the target opens pre‑filled and auto‑runs.</div>
+    <div class="xfer-btns">`;
+  options.forEach((o,i)=>{
+    h+=`<button class="xfer-btn" onclick="window.__khavsTransfer(${i})">
+      <b>${o.label}</b><span>${o.detail||''}</span></button>`;
+  });
+  return h+'</div></div>';
+}
 function gaugesHTML(list){
   if(!list.length)return'';
   let h='<div class="gauges">';
@@ -1633,7 +2074,7 @@ function mergeBeamSamples(members){
   members.forEach(m=>{ m.x.forEach((x,i)=>pts.push({x:x0+x, M:m.M[i]/1e6, V:m.V[i]/1e3})); x0+=m.L; });
   return {pts,Ltot:x0};
 }
-function beamDiagSVG(run,fixedEnds){
+function beamDiagSVG(run,fixedEnds,cant){
   const {pts,Ltot}=mergeBeamSamples(run.res.members);
   const W=620,Hd=170,padL=45,padR=25,base=62,amp=52;
   const sc=(W-padL-padR)/Ltot;
@@ -1654,10 +2095,12 @@ function beamDiagSVG(run,fixedEnds){
   const supports=(y)=>{
     const tri=x=>`<path d="M ${x} ${y} l -7 11 l 14 0 Z" fill="none" stroke="#444" stroke-width="1.3"/>`;
     const fix=x=>`<line x1="${x}" y1="${y-13}" x2="${x}" y2="${y+13}" stroke="#444" stroke-width="2.6"/>`;
+    if(cant) return fix(padL); // fixed root, free tip
     return fixedEnds? fix(padL)+fix(padL+Ltot*sc) : tri(padL)+tri(padL+Ltot*sc);
   };
   const R=run.res.reactions;
   const rTxt=(r,x)=>{
+    if(!r) return '';
     let t=`V=${f1(r.Ry/1e3)} kN`;
     if(Math.abs(r.Mz)>1e3) t+=`, M=${f1(Math.abs(r.Mz)/1e6)} kNm`;
     return `<text x="${x}" y="${Hd-8}" font-size="10.5" fill="#333" text-anchor="middle" font-family="monospace">${t}</text>`;
@@ -1665,7 +2108,7 @@ function beamDiagSVG(run,fixedEnds){
   const bmd=`<svg width="${W}" height="${Hd}" viewBox="0 0 ${W} ${Hd}">
     <line x1="${padL}" y1="${base}" x2="${padL+Ltot*sc}" y2="${base}" stroke="#666" stroke-width="1.6"/>
     ${mkPlot('M','#2f6fb0',true)}${supports(base)}
-    ${rTxt(R[0],padL)}${rTxt(R[1],padL+Ltot*sc)}
+    ${rTxt(R[0],padL)}${cant?'':rTxt(R[1],padL+Ltot*sc)}
     <text x="${padL}" y="16" font-size="10.5" fill="#5c6572" font-family="monospace">kNm (sagging plotted down)</text></svg>`;
   const sfd=`<svg width="${W}" height="${Hd-30}" viewBox="0 0 ${W} ${Hd-30}">
     <line x1="${padL}" y1="${base}" x2="${padL+Ltot*sc}" y2="${base}" stroke="#666" stroke-width="1.6"/>
@@ -1779,6 +2222,93 @@ function trussSketchSVG(L,d,panel,F){
     <svg width="${W}" height="${Hd}" viewBox="0 0 ${W} ${Hd}">${g}</svg></div>`;
 }
 
+/* base plate plan + elevation detail */
+function basePlateSVG(sec,st){
+  const W=560,H=210,pad=30;
+  // plan view (left)
+  const Bp=st.bpB, Dp=st.bpD; const sc=Math.min((W/2-2*pad)/Math.max(Bp,Dp),(H-2*pad)/Math.max(Bp,Dp));
+  const pw=Bp*sc, ph=Dp*sc, cx=W/4, cy=H/2;
+  const colH=sec.h*sc, colB=sec.b*sc;
+  const eB=st.eBolt*sc, bd=8;
+  let plan=`<rect x="${cx-pw/2}" y="${cy-ph/2}" width="${pw}" height="${ph}" fill="#dfe6ee" stroke="#3a4655" stroke-width="1.4"/>`;
+  // column footprint (I)
+  if(sec.type==='I'||sec.type==='channel'){
+    const tf=Math.max(sec.tf*sc,2), tw=Math.max(sec.tw*sc,2);
+    plan+=`<rect x="${cx-colB/2}" y="${cy-colH/2}" width="${colB}" height="${tf}" fill="#8fa9c2"/>
+      <rect x="${cx-colB/2}" y="${cy+colH/2-tf}" width="${colB}" height="${tf}" fill="#8fa9c2"/>
+      <rect x="${cx-tw/2}" y="${cy-colH/2}" width="${tw}" height="${colH}" fill="#8fa9c2"/>`;
+  } else if(sec.type==='RHS'){
+    plan+=`<rect x="${cx-colB/2}" y="${cy-colH/2}" width="${colB}" height="${colH}" fill="none" stroke="#8fa9c2" stroke-width="3"/>`;
+  } else if(sec.type==='CHS'){
+    plan+=`<circle cx="${cx}" cy="${cy}" r="${colH/2}" fill="none" stroke="#8fa9c2" stroke-width="3"/>`;
+  }
+  // anchor bolts: two lines (top & bottom edges along D)
+  const nL=Math.max(1,Math.round(st.nLine));
+  for(let line=0;line<2;line++){
+    const by=cy + (line?1:-1)*(ph/2-eB);
+    for(let i=0;i<nL;i++){
+      const bx=cx - pw/2 + eB + (nL>1? i*(pw-2*eB)/(nL-1):(pw/2-eB));
+      plan+=`<circle cx="${bx}" cy="${by}" r="4" fill="none" stroke="#cf4b45" stroke-width="1.6"/>
+             <line x1="${bx-5}" y1="${by}" x2="${bx+5}" y2="${by}" stroke="#cf4b45" stroke-width="0.8"/>
+             <line x1="${bx}" y1="${by-5}" x2="${bx}" y2="${by+5}" stroke="#cf4b45" stroke-width="0.8"/>`;
+    }
+  }
+  plan+=`<text x="${cx}" y="${cy+ph/2+18}" font-size="10.5" fill="#333" text-anchor="middle" font-family="monospace">Plan ${Bp}×${Dp} mm</text>`;
+  // elevation (right): plate + column + embedded anchors
+  const ex=3*W/4, ey=H/2, escale=sc;
+  const elevPlateW=pw, tpv=Math.max(st.bpT*escale,4), hefv=Math.min(st.hef*escale,H/2-10);
+  let elev=`<rect x="${ex-elevPlateW/2}" y="${ey-tpv}" width="${elevPlateW}" height="${tpv}" fill="#8fa9c2" stroke="#3a4655"/>
+    <rect x="${ex-elevPlateW/2}" y="${ey}" width="${elevPlateW}" height="${H/2-20}" fill="#eee" stroke="#bbb" stroke-dasharray="3 3"/>
+    <rect x="${ex-colB/2}" y="${ey-tpv-colH*0.5}" width="${colB}" height="${colH*0.5}" fill="#8fa9c2" opacity="0.5"/>`;
+  // anchor rods
+  [-1,1].forEach(s=>{
+    const bx=ex+s*(elevPlateW/2-eB);
+    elev+=`<line x1="${bx}" y1="${ey-tpv-6}" x2="${bx}" y2="${ey+hefv}" stroke="#cf4b45" stroke-width="2"/>
+      <circle cx="${bx}" cy="${ey-tpv-8}" r="3.2" fill="#cf4b45"/>`;
+    if(st.anchorType==='plate') elev+=`<rect x="${bx-7}" y="${ey+hefv}" width="14" height="4" fill="#cf4b45"/>`;
+    else elev+=`<path d="M ${bx} ${ey+hefv} q 0 8 10 8" fill="none" stroke="#cf4b45" stroke-width="2"/>`;
+  });
+  elev+=`<line x1="${ex+elevPlateW/2+8}" y1="${ey}" x2="${ex+elevPlateW/2+8}" y2="${ey+hefv}" stroke="#666" stroke-width="0.8"/>
+    <text x="${ex+elevPlateW/2+12}" y="${ey+hefv/2}" font-size="10" fill="#333" font-family="monospace">hef ${st.hef}</text>
+    <text x="${ex}" y="${ey+H/2-4}" font-size="10.5" fill="#333" text-anchor="middle" font-family="monospace">Elevation</text>`;
+  return `<div class="diagram" style="flex-direction:column;align-items:stretch">
+    <div class="diag-title">Base plate detail — plate ${Bp}×${Dp}×${st.bpT} mm, ${st.boltSize} ${st.boltGrade} anchors</div>
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${plan}${elev}</svg></div>`;
+}
+
+/* moment end-plate elevation */
+function endPlateSVG(sec,st,r){
+  const W=460,H=250,pad=24;
+  const beamH=sec.h, plateExt=st.exRow+20;
+  const totalH=beamH+plateExt+20;
+  const sc=(H-2*pad)/totalH;
+  const cx=W/2, top=pad;
+  const bh=beamH*sc, bw=Math.min(sec.b*sc,120), tf=Math.max(sec.tf*sc,2), tw=Math.max(sec.tw*sc,2);
+  const plateH=(beamH+plateExt)*sc, plateW=Math.max(st.mpB*sc,bw+16), plateT=8;
+  const py0=top+10;
+  // end plate
+  let g=`<rect x="${cx-plateT/2-2}" y="${py0}" width="${plateT}" height="${plateH}" fill="#5b7a99" stroke="#3a4655"/>`;
+  // beam (to right of plate)
+  const bx0=cx+plateT/2-2, by0=py0+plateExt*sc;
+  g+=`<rect x="${bx0}" y="${by0}" width="${bw}" height="${tf}" fill="#8fa9c2"/>
+      <rect x="${bx0}" y="${by0+bh-tf}" width="${bw}" height="${tf}" fill="#8fa9c2"/>
+      <rect x="${bx0}" y="${by0+tf}" width="${tw}" height="${bh-2*tf}" fill="#8fa9c2"/>`;
+  // bolt rows (2 bolts each shown as one line at plate)
+  const bottomFlangeY=by0+bh-tf/2;
+  r.rows.forEach((row,i)=>{
+    const ry=bottomFlangeY - row.y*sc;
+    g+=`<circle cx="${cx-plateT/2-2}" cy="${ry}" r="4" fill="none" stroke="#cf4b45" stroke-width="1.6"/>
+        <text x="${cx-plateT/2-12}" y="${ry+3}" font-size="10" fill="#333" text-anchor="end" font-family="monospace">R${i+1}: ${f1(row.F)} kN</text>`;
+  });
+  // compression bolt pair near bottom flange
+  g+=`<circle cx="${cx-plateT/2-2}" cy="${bottomFlangeY+8}" r="4" fill="none" stroke="#3f9d5a" stroke-width="1.6"/>`;
+  g+=`<text x="${cx+bw/2}" y="${by0+bh+16}" font-size="10.5" fill="#333" text-anchor="middle" font-family="monospace">${sec.name}</text>`;
+  g+=`<text x="${cx-plateT/2-2}" y="${py0-2}" font-size="10.5" fill="#333" text-anchor="middle" font-family="monospace">Ext. plate ${st.mpB}×${st.mpT}</text>`;
+  return `<div class="diagram" style="flex-direction:column;align-items:stretch">
+    <div class="diag-title">End‑plate elevation — bolt rows & lever arms</div>
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg></div>`;
+}
+
 /* ==================== SLS helper ==================== */
 function slsRows(runs,getDelta,limits){ // limits: [{tagMatch,label,lim mm}]
   const rows=[];
@@ -1799,52 +2329,144 @@ function slsTableHTML(rows){
 }
 
 /* ==================== MODE RENDERERS ==================== */
-function renderBeam(fixed){
+function renderBeam(kind){ // kind: 'ss' | 'ff' | 'cant'
+  const fixed=(kind==='ff'), cant=(kind==='cant');
   const sec=resolveSection(); if(!sec) return '<div class="empty">Select a section.</div>';
-  const L=STATE.gSpan; if(L<=0) return '<div class="empty">Enter a span.</div>';
+  const L=STATE.gSpan; if(L<=0) return '<div class="empty">Enter a '+(cant?'length':'span')+'.</div>';
   const {g,q,x}=gravityUDLs(sec);
   const w1v=windUDL(STATE.w1), w2v=windUDL(STATE.w2);
-  const model=buildBeam({L},sec,{g,q,w1:w1v,w2:w2v,x},fixed);
+  const model=cant
+    ? buildCantilever({L},sec,{g,q,w1:w1v,w2:w2v,x,Pg:STATE.PGt,Pq:STATE.PQt})
+    : buildBeam({L},sec,{g,q,w1:w1v,w2:w2v,x},fixed);
   const an=analyseModel(model,STATE.code,codeE(),{hasW1:w1v>0,hasW2:w2v>0,hasX:x>0});
-  const lens={LEy:0,LEz:0,LLTtop:STATE.LLT||0,LLTbot:STATE.LLTbot>0?STATE.LLTbot:L};
-  // per-ULS-combo checks
+  // cantilever: hogging everywhere → bottom flange in compression → use bottom-flange restraint
+  const lens=cant
+    ? {LEy:0,LEz:0,LLTtop:STATE.LLTbot>0?STATE.LLTbot:L,LLTbot:STATE.LLTbot>0?STATE.LLTbot:L}
+    : {LEy:0,LEz:0,LLTtop:STATE.LLT||0,LLTbot:STATE.LLTbot>0?STATE.LLTbot:L};
   const rows=[];
   an.runs.filter(r=>r.combo.type==='ULS').forEach(r=>{
     const F=forcesOf(r.res.members,[0,1]);
     const chk=checkMemberCombo(sec,F,lens);
     const f=r.combo.f;
-    const w=(f.G||0)*g+(f.Q||0)*q+(f.W1||0)*w1v-(f.W2||0)*w2v+(f.X||0)*x;
+    let w=(f.G||0)*g+(f.Q||0)*q+(f.W1||0)*w1v-(f.W2||0)*w2v+(f.X||0)*x;
     rows.push({run:r,name:r.combo.name,w,F,chk,u:chk.res.govern.u});
   });
   const gov=rows.reduce((a,b)=>b.u>a.u?b:a);
-  // SLS
   const Lm=L*1000;
-  const sls=slsRows(an.runs,r=>r.res.disp[3*model.midNode+1],[
+  const deflNode=cant?model.tipNode:model.midNode;
+  const sls=slsRows(an.runs,r=>r.res.disp[3*deflNode+1],[
     {tagMatch:c=>c.tag==='live',label:`L/${STATE.limLive}`,lim:Lm/STATE.limLive},
     {tagMatch:c=>c.tag==='total',label:`L/${STATE.limTotal}`,lim:Lm/STATE.limTotal},
     {tagMatch:c=>c.tag==='wind',label:`L/${STATE.limTotal}`,lim:Lm/STATE.limTotal}]);
   const uAll=Math.max(gov.u,...sls.map(s=>s.u),0);
-  // combo table
+  const tipTxt=cant&&(STATE.PGt||STATE.PQt)?` · tip P: G=${STATE.PGt}, Q=${STATE.PQt} kN`:'';
   let ct=`<div class="tbl-card"><h4>Ultimate load combinations — envelope forces & adequacy</h4><table class="ctab">
-    <tr><th>Combination</th><th>w (kN/m)</th><th>M sag (kNm)</th><th>M hog (kNm)</th><th>V (kN)</th><th>Governing check</th><th>Util.</th></tr>`;
+    <tr><th>Combination</th><th>w (kN/m)</th><th>M sag (kNm)</th><th>M ${cant?'root (hog)':'hog'} (kNm)</th><th>V (kN)</th><th>Governing check</th><th>Util.</th></tr>`;
   rows.forEach(r=>{ ct+=`<tr class="${r===gov?'gov':''}"><td>${r.name}</td><td>${f2(r.w)}</td>
-    <td>${f1(r.F.Msag)}</td><td>${r.F.Mhog>0.001?f1(r.F.Mhog):'–'}</td><td>${f1(r.F.V)}</td>
+    <td>${r.F.Msag>0.001?f1(r.F.Msag):'–'}</td><td>${r.F.Mhog>0.001?f1(r.F.Mhog):'–'}</td><td>${f1(r.F.V)}</td>
     <td class="dim">${r.chk.res.govern.name} (${r.chk.tag})</td>
     <td class="${uCls(r.u)}">${(r.u*100).toFixed(1)}%</td></tr>`; });
   ct+='</table></div>';
-  // gauges: expand governing utils + deflection
   const gauges=gov.chk.res.utils.map(u=>({name:u.name,u:u.u}));
   sls.forEach(s=>gauges.push({name:`Deflection ${s.label}`,u:s.u}));
-  let html=headHTML(`${fixed?'Fixed-end':'Simply supported'} beam — ${sec.name}`,
-    `L = ${L} m · G = ${f2(g)} kN/m · Q = ${f2(q)} kN/m${w1v?` · W₁ = ${f2(w1v)}`:''}${w2v?` · W₂ = ${f2(w2v)}↑`:''}`,
+  const title=cant?'Cantilever':fixed?'Fixed-end beam':'Simply supported beam';
+  let html=headHTML(`${title} — ${sec.name}`,
+    `L = ${L} m · G = ${f2(g)} kN/m · Q = ${f2(q)} kN/m${w1v?` · W₁ = ${f2(w1v)}`:''}${w2v?` · W₂ = ${f2(w2v)}↑`:''}${tipTxt}`,
     gov.chk.res.code);
   html+=verdictHTML(uAll,`Governing: ${gov.name} → ${gov.chk.res.govern.name} (${gov.chk.tag})`);
   html+=gaugesHTML(gauges);
   html+=ct;
-  html+=beamDiagSVG(gov.run,fixed);
+  html+=beamDiagSVG(gov.run,fixed,cant);
   html+=slsTableHTML(sls);
   html+=propsCardHTML(sec);
+  // ---- handoff: end reactions ----
+  {
+    const R=gov.run.res.reactions;
+    const Vend=Math.max(...R.map(r=>Math.abs(r.Ry/1e3)));       // kN
+    const Mend=Math.max(...R.map(r=>Math.abs((r.Mz||0)/1e6)));  // kNm (ff/cant only)
+    const opts=[];
+    if(fixed||cant){
+      opts.push({label:'→ Moment end‑plate connection',
+        detail:`M = ${f1(Mend)} kNm · V = ${f1(Vend)} kN`,
+        target:'conn', section:sec,
+        payload:{mcM:+Mend.toFixed(1), mcV:+Vend.toFixed(1), mcN:0}});
+    }
+    opts.push({label:'→ Simple (shear) connection sizing',
+      detail:`V = ${f1(Vend)} kN → moment‑plate with M≈0`,
+      target:'conn', section:sec,
+      payload:{mcM:0, mcV:+Vend.toFixed(1), mcN:0}});
+    html+=transferPanelHTML(`this ${cant?'cantilever':fixed?'fixed‑end beam':'beam'} (${gov.name})`, opts);
+  }
   html+=stepsHTML(`Design check — ${gov.name} (${gov.chk.tag})`,gov.chk.res.steps);
+  return html;
+}
+
+function renderBase(){
+  const sec=resolveSection(); if(!sec) return '<div class="empty">Select a column section.</div>';
+  if(sec.type!=='I'&&sec.type!=='channel'&&sec.type!=='RHS'&&sec.type!=='CHS')
+    return '<div class="empty">Base plate needs a column section (I/H, RHS or CHS).</div>';
+  const tmax=Math.max(sec.tf||sec.t||10,sec.tw||sec.t||10);
+  const py=(STATE.code==='EC3')?fyEC(STATE.grade,tmax):pyBS(STATE.grade,tmax);
+  const cases=[
+    {name:'Case 1 — max compression',N:STATE.bN1,M:STATE.bM1,V:STATE.bV1},
+    {name:'Case 2 — uplift / min axial',N:STATE.bN2,M:STATE.bM2,V:STATE.bV2}];
+  const r=basePlateCheck({sec,grade:STATE.grade,py,code:STATE.code,
+    B:STATE.bpB,D:STATE.bpD,tp:STATE.bpT,fc:STATE.fck,
+    bolt:{size:STATE.boltSize,grade:STATE.boltGrade,nLine:Math.max(1,Math.round(STATE.nLine)),
+      eB:STATE.eBolt,mB:STATE.mBolt,hef:STATE.hef,type:STATE.anchorType},
+    weldS:STATE.weldS,cases});
+  const gov=r.gov;
+  let html=headHTML(`Base plate — ${sec.name}`,
+    `Plate ${STATE.bpB}×${STATE.bpD}×${STATE.bpT} mm · ${STATE.boltSize} ${STATE.boltGrade} anchors · concrete ${STATE.code==='EC3'?'fck':'fcu'} ${STATE.fck}`,
+    r.code);
+  html+=verdictHTML(gov.govern.u,`Governing: ${gov.name} → ${gov.govern.name}`);
+  if(STATE.xferNote){ html+=`<div class="xfer-note">↳ ${STATE.xferNote}</div>`; }
+  // combined utilisation set across both cases
+  const allU={};
+  r.results.forEach(res=>res.utils.forEach(u=>{ allU[u.name]=Math.max(allU[u.name]||0,u.u); }));
+  html+=gaugesHTML(Object.entries(allU).map(([name,u])=>({name,u})));
+  // case summary table
+  let ct=`<div class="tbl-card"><h4>Load cases — governing checks</h4><table class="ctab">
+    <tr><th>Case</th><th>N (kN)</th><th>M (kNm)</th><th>V (kN)</th><th>Anchor T (kN)</th><th>Governing</th><th>Util.</th></tr>`;
+  r.results.forEach((res,i)=>{ const cs=cases[i];
+    ct+=`<tr class="${res===gov?'gov':''}"><td>${cs.name}</td><td>${f1(cs.N)}</td><td>${f1(cs.M)}</td><td>${f1(cs.V)}</td>
+    <td>${res.T>0.1?f1(res.T):'–'}</td><td class="dim">${res.govern.name}</td>
+    <td class="${uCls(res.govern.u)}">${(res.govern.u*100).toFixed(1)}%</td></tr>`; });
+  ct+='</table></div>';
+  html+=ct;
+  html+=basePlateSVG(sec,STATE);
+  html+=stepsHTML(`${gov.name} — detailed checks`,gov.steps);
+  // also show the other case
+  const other=r.results.find(x=>x!==gov);
+  if(other) html+=stepsHTML(`${other.name} — detailed checks`,other.steps);
+  html+=`<div class="notice"><b>Base plate scope:</b> rigid‑plate bearing method with an effective compression block; anchor tension from statics about the compression centroid. Concrete cone and bond are simplified single‑anchor CEN/TS values — reduce for anchor group spacing < 3·hef and edge distances. Shear transfer assumed through anchors (add a shear key if friction/anchors are insufficient). Confirm anchor product data and detailing.</div>`;
+  return html;
+}
+
+function renderConn(){
+  const sec=resolveSection(); if(!sec) return '<div class="empty">Select a beam section.</div>';
+  if(sec.type!=='I') return '<div class="empty">Moment end‑plate expects an I/H beam section.</div>';
+  const tmax=Math.max(sec.tf,sec.tw);
+  const py=(STATE.code==='EC3')?fyEC(STATE.grade,tmax):pyBS(STATE.grade,tmax);
+  const r=momentConnCheck({sec,grade:STATE.grade,py,code:STATE.code,
+    bp:STATE.mpB,tp:STATE.mpT,bolt:{size:STATE.boltSize,grade:STATE.boltGrade},
+    gauge:STATE.gaugeG,ex:STATE.exRow,p1:STATE.p1Row,pitch:STATE.pitchRow,nBelow:Math.round(STATE.nBelow),
+    weldS:STATE.weldS,loads:{M:STATE.mcM,V:STATE.mcV,N:STATE.mcN}});
+  let html=headHTML(`Moment end‑plate — ${sec.name}`,
+    `Plate ${STATE.mpB}×${STATE.mpT} mm · ${STATE.boltSize} ${STATE.boltGrade} · ${r.rows.length} tension row(s) · M = ${STATE.mcM} kNm`,
+    r.code);
+  html+=verdictHTML(r.govern.u,`Governing: ${r.govern.name}`);
+  if(STATE.xferNote){ html+=`<div class="xfer-note">↳ ${STATE.xferNote}</div>`; }
+  html+=gaugesHTML(r.utils.map(u=>({name:u.name,u:u.u})));
+  // bolt-row table
+  let ct=`<div class="tbl-card"><h4>Bolt rows — elastic force distribution</h4><table class="ctab">
+    <tr><th>Row</th><th>Lever h (mm)</th><th>Force F (kN)</th></tr>`;
+  r.rows.forEach((row,i)=>{ ct+=`<tr><td>Row ${i+1}</td><td>${f0(row.y)}</td><td>${f1(row.F)}</td></tr>`; });
+  ct+=`<tr class="gov"><td>MRd (potential)</td><td>—</td><td>${f1(r.MRd)} kNm</td></tr></table></div>`;
+  html+=ct;
+  html+=endPlateSVG(sec,STATE,r);
+  html+=stepsHTML('Connection checks',r.steps);
+  html+=`<div class="notice"><b>Connection scope:</b> beam‑side extended end‑plate, elastic row distribution, 2 bolts/row. The column side (flange bending, web tension/compression, panel‑zone shear and stiffener/haunch requirements) and prying‑amplified bolt forces must be verified separately, ideally to the SCI green book (P398/P207).</div>`;
   return html;
 }
 
@@ -1883,6 +2505,25 @@ function renderColumn(){
   html+=columnDiagSVG(gov.run,H,cant);
   html+=slsTableHTML(sls);
   html+=propsCardHTML(sec);
+  // ---- handoff: base reactions (governing compression + governing uplift) ----
+  {
+    // find the ULS combo giving max axial (Case 1) and min axial / max uplift (Case 2)
+    let govC=rows[0], govU=rows[0];
+    rows.forEach(r=>{ if(r.F.Nc>govC.F.Nc)govC=r; });
+    // uplift/min axial: smallest net compression at base
+    let minN=1e9;
+    rows.forEach(r=>{ const R=r.run.res.reactions[0]; const Nnet=R.Ry/1e3;
+      if(Nnet<minN){minN=Nnet; govU=r;} });
+    const baseC=govC.run.res.reactions[0], baseU=govU.run.res.reactions[0];
+    const N1=+(baseC.Ry/1e3).toFixed(1), M1=+Math.abs((baseC.Mz||0)/1e6).toFixed(1), V1=+Math.abs(baseC.Rx/1e3).toFixed(1);
+    const N2=+(baseU.Ry/1e3).toFixed(1), M2=+Math.abs((baseU.Mz||0)/1e6).toFixed(1), V2=+Math.abs(baseU.Rx/1e3).toFixed(1);
+    // note: cantilever (fixed base) transfers a real base moment; pinned base M≈0
+    const opts=[{label:'→ Base plate & anchor design',
+      detail:`C1 N=${N1} M=${M1} V=${V1} · C2 N=${N2} M=${M2} V=${V2} kN,kNm`,
+      target:'base', section:sec,
+      payload:{bN1:N1,bM1:M1,bV1:V1, bN2:N2,bM2:M2,bV2:V2}}];
+    html+=transferPanelHTML(`this column's base (${govC.name} / ${govU.name})`, opts);
+  }
   html+=stepsHTML(`Design check — ${gov.name}`,gov.chk.res.steps);
   return html;
 }
@@ -1942,6 +2583,37 @@ function renderPortal(){
   html+=slsTableHTML(allSls);
   html+=propsCardHTML(secR,secC,'Column');
   html+=`<div class="notice"><b>Portal scope:</b> first‑order elastic analysis. In‑plane column effective length is your K input (pinned‑base portals are sway frames — K ≈ 1.5+); second‑order (α<sub>cr</sub>/λ<sub>cr</sub>) sensitivity, haunches, and member imperfections are not assessed here. Verify sway stability and connection/haunch design separately.</div>`;
+  // ---- handoffs: column base plate + eaves moment connection ----
+  {
+    // base: pick combo with max base compression and combo with min base axial (uplift)
+    let govC=rows[0], govU=rows[0], minN=1e9, maxN=-1e9;
+    rows.forEach(r=>{
+      const R0=r.run.res.reactions.find(x=>x.node===0)||r.run.res.reactions[0];
+      const N=R0.Ry/1e3;
+      if(N>maxN){maxN=N;govC=r;} if(N<minN){minN=N;govU=r;}
+    });
+    const rC=govC.run.res.reactions.find(x=>x.node===0)||govC.run.res.reactions[0];
+    const rU=govU.run.res.reactions.find(x=>x.node===0)||govU.run.res.reactions[0];
+    const N1=+(rC.Ry/1e3).toFixed(1), M1=+Math.abs((rC.Mz||0)/1e6).toFixed(1), V1=+Math.abs(rC.Rx/1e3).toFixed(1);
+    const N2=+(rU.Ry/1e3).toFixed(1), M2=+Math.abs((rU.Mz||0)/1e6).toFixed(1), V2=+Math.abs(rU.Rx/1e3).toFixed(1);
+    // eaves: max column end moment across combos (member 0 & 3), with coincident shear
+    let Meaves=0, Veaves=0, ecombo='';
+    rows.forEach(r=>{
+      [0,3].forEach(mi=>{ const m=r.run.res.members[mi]; if(!m)return;
+        const Mend=Math.max(Math.abs(m.maxM),Math.abs(m.minM))/1e6;
+        if(Mend>Meaves){Meaves=Mend; Veaves=m.maxAbsV/1e3; ecombo=r.name;} });
+    });
+    const opts=[
+      {label:'→ Column base plate & anchors',
+        detail:`C1 N=${N1} M=${M1} V=${V1} · C2(uplift) N=${N2} M=${M2} V=${V2}`,
+        target:'base', section:secC,
+        payload:{bN1:N1,bM1:M1,bV1:V1, bN2:N2,bM2:M2,bV2:V2}},
+      {label:'→ Eaves moment connection',
+        detail:`M = ${f1(Meaves)} kNm · V = ${f1(Veaves)} kN (${ecombo})`,
+        target:'conn', section:secR,
+        payload:{mcM:+Meaves.toFixed(1), mcV:+Veaves.toFixed(1), mcN:0}}];
+    html+=transferPanelHTML(`this portal frame`, opts);
+  }
   html+=stepsHTML(`Column check — ${govCol.name} (${govCol.cc.tag})`,govCol.cc.res.steps);
   html+=stepsHTML(`Rafter check — ${govRaf.name} (${govRaf.cr.tag})`,govRaf.cr.res.steps);
   return html;
@@ -2006,6 +2678,15 @@ function renderTruss(){
   html+=slsTableHTML(sls);
   html+=propsCardHTML(secCh,secW,'Web member');
   html+=`<div class="notice"><b>Truss method:</b> equivalent‑depth approximation — chord force = M/d at the point of maximum moment, worst web from support shear, deflection from chord‑only inertia +15% web‑flexibility allowance. Node eccentricities, local chord bending from loads between nodes, and connection design are not covered. Note the reversal row: under wind uplift the <b>bottom chord goes into compression</b> — restrain it accordingly.</div>`;
+  // ---- handoff: support (shear) connection ----
+  {
+    const R=Math.abs(gov.tf.R);
+    const opts=[{label:'→ Support / bearing connection',
+      detail:`reaction V = ${f1(R)} kN → shear connection (M≈0)`,
+      target:'conn', section:secCh,
+      payload:{mcM:0, mcV:+R.toFixed(1), mcN:0}}];
+    html+=transferPanelHTML(`this truss (${gov.name})`, opts);
+  }
   html+=stepsHTML(`Top chord — ${govTop.name}`,govTop.top.steps);
   html+=stepsHTML(`Bottom chord — ${govBot.name}`,govBot.bot.steps);
   html+=stepsHTML(`Web member — ${govWeb.name}`,govWeb.web.steps);
@@ -2038,11 +2719,14 @@ function render(){
   let html;
   try{
     switch(STATE.mode){
-      case 'ss': html=renderBeam(false); break;
-      case 'ff': html=renderBeam(true); break;
+      case 'ss': html=renderBeam('ss'); break;
+      case 'ff': html=renderBeam('ff'); break;
+      case 'cant': html=renderBeam('cant'); break;
       case 'column': html=renderColumn(); break;
       case 'portal': html=renderPortal(); break;
       case 'truss': html=renderTruss(); break;
+      case 'base': html=renderBase(); break;
+      case 'conn': html=renderConn(); break;
       default: html=renderDirect();
     }
   }catch(err){ html='<div class="empty">Error: '+err.message+'</div>'; console.error(err); }
