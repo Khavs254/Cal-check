@@ -33,6 +33,31 @@ input,select{font-family:inherit}
 .tool-btn:disabled{opacity:.4;cursor:not-allowed}
 .tool-btn.primary{background:var(--blueprint);border-color:var(--blueprint);color:#fff}
 .tool-btn.primary:hover{background:#3a7fc4}
+.sync-pill{font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;border:1px solid var(--panel-line);
+  background:var(--panel-2);color:var(--muted);white-space:nowrap;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.sync-pill.ok{color:var(--green);border-color:#2c5138}
+.sync-pill.saving{color:var(--amber);border-color:#4a3a1c}
+.sync-pill.err{color:var(--red);border-color:#5a2c2a}
+.modal-overlay{position:fixed;inset:0;background:rgba(6,9,13,.72);z-index:100;display:none;
+  align-items:center;justify-content:center;padding:20px;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--panel-2);border:1px solid var(--panel-line);border-radius:14px;max-width:420px;width:100%;
+  padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.55);max-height:86vh;overflow-y:auto}
+.modal h3{margin:0 0 8px;font-size:16px;font-weight:700;color:#eaf0f6}
+.modal-msg{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.modal-inp{width:100%;background:#0f151d;border:1px solid var(--panel-line);color:#e8eef4;
+  padding:10px 11px;border-radius:8px;font-size:14px;outline:none;margin-bottom:10px}
+.modal-inp:focus{border-color:var(--blueprint)}
+.modal-inp-label{font-size:11.5px;color:var(--muted);margin-bottom:4px;display:block}
+.modal-btns{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+.modal-btn{width:100%;text-align:left;background:#0f151d;border:1px solid var(--panel-line);color:#e8eef4;
+  padding:13px 14px;border-radius:9px;font-size:14px;font-weight:600;transition:.13s;display:flex;flex-direction:column;gap:2px}
+.modal-btn:hover{background:#1b2532;border-color:var(--steel)}
+.modal-btn.primary{background:var(--blueprint);border-color:var(--blueprint);color:#fff}
+.modal-btn.primary:hover{background:#3a7fc4}
+.modal-btn.ghost{background:transparent;text-align:center;color:var(--muted);font-weight:500;padding:10px}
+.modal-btn small{font-weight:400;font-size:11.5px;color:var(--steel-lt)}
+.modal-btn.primary small{color:#dbe8f4}
 
 /* ---- Layout ---- */
 .wrap{display:grid;grid-template-columns:392px 1fr;height:calc(100vh - 53px)}
@@ -147,19 +172,27 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
 .inputs::-webkit-scrollbar-thumb,.output::-webkit-scrollbar-thumb{background:#3a4655;border-radius:5px}
 
 @media print{
-  body{background:#fff;color:#000}
-  .topbar,.inputs{display:none!important}
+  body{background:#fff;color:#000;font-size:11px}
+  .topbar,.inputs,.xfer{display:none!important}
+  .modal-overlay{display:none!important}
   .wrap{display:block;height:auto}
   .output{background:#fff;color:#000;padding:0;overflow:visible}
   .sheet{max-width:none}
-  .verdict,.gauge,.steps,.tbl-card{background:#fff!important;border-color:#bbb!important}
+  .sheet::before{content:"Khavs Steel Design — Ropa Engineering Co. Ltd  ·  Design calculation sheet";
+    display:block;font-size:11px;font-weight:700;border-bottom:1.5px solid #000;padding-bottom:5px;margin-bottom:12px;letter-spacing:.02em}
+  .verdict,.gauge,.steps,.tbl-card{background:#fff!important;border-color:#999!important}
   .step,.gauge{border-color:#ccc!important}
   .step .detail,.step .result,.gauge,.codebadge,.ctab td{color:#000!important}
   .ctab th{color:#333!important}
   .ctab tr.gov td{background:#e8eef6!important}
   .sheet-head h1,.step .st-head b,.verdict .txt b{color:#000}
-  .steps .steps-title,.tbl-card h4{color:#333!important;background:#f2f2f2!important}
-  .diagram{background:#f6f5f2!important}
+  .steps .steps-title,.tbl-card h4{color:#000!important;background:#eee!important}
+  .diagram{background:#f6f5f2!important;page-break-inside:avoid}
+  .steps,.tbl-card,.verdict{page-break-inside:avoid}
+  .step{page-break-inside:avoid}
+  .gauges{page-break-inside:avoid}
+  .xfer-note{background:#f2f2f2!important;color:#000!important;border-color:#999!important}
+  a{color:#000;text-decoration:none}
   @page{margin:13mm}
 }
 @media (max-width:860px){ .wrap{grid-template-columns:1fr;height:auto} .inputs{border-right:0;border-bottom:1px solid var(--panel-line)} }
@@ -174,8 +207,8 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
   <div class="spacer"></div>
   <button class="tool-btn" id="btnUndo" title="Undo (Ctrl+Z)">↶ Undo</button>
   <button class="tool-btn" id="btnRedo" title="Redo (Ctrl+Y)">↷ Redo</button>
-  <button class="tool-btn" id="btnSave" title="Save design">💾 Save</button>
-  <button class="tool-btn" id="btnLoad" title="Load design">📂 Load</button>
+  <span id="syncPill" class="sync-pill" title="Cloud sync status">⟳ …</span>
+  <button class="tool-btn" id="btnCloud" title="Cloud projects">☁ Cloud</button>
   <button class="tool-btn primary" id="btnPrint" title="Print calc sheet">🖨 Print</button>
 </div>
 
@@ -254,6 +287,8 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
       <h3><span class="num">4</span> Geometry</h3>
       <div class="grid2">
         <div class="field" id="fSpan"><label>Span L (m)</label><input class="mono" id="gSpan" type="number" value="6" step="0.1"/></div>
+        <div class="field" id="fAxis"><label>Bending axis</label>
+          <select id="bendAxis"><option value="major">Major (y‑y) — normal</option><option value="minor">Minor (z‑z) — member laid flat</option></select></div>
         <div class="field" id="fHeight"><label>Height h (m)</label><input class="mono" id="gHeight" type="number" value="4" step="0.1"/></div>
       </div>
       <div class="grid2">
@@ -386,22 +421,24 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
 
     <div class="group" id="grpBase" style="display:none">
       <h3><span class="num">6</span> Base plate & anchors</h3>
+      <button class="tool-btn primary" id="btnAutoBase" style="width:100%;justify-content:center;margin-bottom:10px">⤢ Auto‑size plate from column + clearances</button>
       <div class="grid3">
         <div class="field"><label>Plate B (mm)</label><input class="mono" id="bpB" type="number" value="350" step="10"/></div>
         <div class="field"><label>Plate D (mm)</label><input class="mono" id="bpD" type="number" value="350" step="10"/></div>
         <div class="field"><label>Plate t (mm)</label><input class="mono" id="bpT" type="number" value="20" step="1"/></div>
       </div>
+      <div class="grid2">
+        <div class="field"><label>Bolt edge dist (mm)</label><input class="mono" id="eBolt" type="number" value="50" step="5"/></div>
+        <div class="field"><label>Clear to steel face (mm)</label><input class="mono" id="clearBolt" type="number" value="45" step="5"/></div>
+      </div>
       <div class="field"><label id="fckLabel">Concrete fcu (N/mm²)</label><input class="mono" id="fck" type="number" value="25" step="5"/></div>
       <div class="grid3">
         <div class="field"><label>Bolts per line</label><input class="mono" id="nLine" type="number" value="2" min="1" step="1"/></div>
-        <div class="field"><label>Edge dist e (mm)</label><input class="mono" id="eBolt" type="number" value="50" step="5"/></div>
         <div class="field"><label>m to col face (mm)</label><input class="mono" id="mBolt" type="number" value="60" step="5"/></div>
-      </div>
-      <div class="grid2">
         <div class="field"><label>Embedment hef (mm)</label><input class="mono" id="hef" type="number" value="300" step="25"/></div>
-        <div class="field"><label>Anchor type</label>
-          <select id="anchorType"><option value="bond">Straight (bond)</option><option value="plate">Plate / hooked</option></select></div>
       </div>
+      <div class="field"><label>Anchor type</label>
+        <select id="anchorType"><option value="bond">Straight (bond)</option><option value="plate">Plate / hooked</option></select></div>
       <div class="subhead">Case 1 — max compression (factored)</div>
       <div class="grid3">
         <div class="field"><label>N (kN, +comp)</label><input class="mono" id="bN1" type="number" value="600" step="10"/></div>
@@ -432,6 +469,12 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
         <div class="field"><label>Pitch (mm)</label><input class="mono" id="pitchRow" type="number" value="80" step="5"/></div>
         <div class="field"><label>Rows below flange</label><input class="mono" id="nBelow" type="number" value="1" min="0" max="4" step="1"/></div>
       </div>
+      <div class="grid2">
+        <div class="field"><label>Bolts per row</label>
+          <select id="mcNBolt"><option value="2">2 (one each side of web)</option><option value="4">4 (wide flange)</option></select></div>
+        <div class="field"><label>Haunch depth (mm, 0 = none)</label><input class="mono" id="haunch" type="number" value="0" step="10"/></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="haunchAuto"/> Haunch = beam depth (auto)</label>
       <div class="subhead">Design actions (factored)</div>
       <div class="grid3">
         <div class="field"><label>M (kNm)</label><input class="mono" id="mcM" type="number" value="90" step="5"/></div>
@@ -472,10 +515,25 @@ table.ctab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size
         <div class="field"><label>Force class (0=auto)</label><input class="mono" id="forceCls" type="number" value="0" min="0" max="4" step="1"/></div>
       </div>
     </div>
+
+    <!-- Cloud config is driven from the toolbar sync pill / ☁ Cloud button. Hidden holders keep values. -->
+    <div id="grpCloud" style="display:none">
+      <div id="cloudStatus"></div>
+      <input id="sbUrl"/><input id="sbKey" type="password"/><input type="checkbox" id="sbLive" checked/>
+    </div>
   </div>
 
   <!-- ============ OUTPUT ============ -->
   <div class="output" id="output"><div class="sheet" id="sheet"></div></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBox">
+    <h3 id="modalTitle">Title</h3>
+    <div id="modalMsg" class="modal-msg"></div>
+    <div id="modalInputs"></div>
+    <div id="modalBtns" class="modal-btns"></div>
+  </div>
 </div>
 
 <script>
@@ -532,25 +590,28 @@ function fyEC(grade, t){
 // Doubly-symmetric I / H section (welded or generic). r = root radius mm (0 for welded).
 function propsISection({h,b,tw,tf,r=0}){
   const hw = h - 2*tf;                     // clear web depth mm
-  // Area (with fillets approx). cm2
+  // Area (with fillets). cm2
   const Amm = 2*(b*tf) + hw*tw + (r>0 ? (4-Math.PI)*r*r : 0);
   const A = Amm/100;
-  // Iy (major, about horizontal axis) mm^4
+  // Root fillet geometry: 4 fillets, each area (1−π/4)r², centroid 0.2234·r from each flat face
+  const Af = (1-Math.PI/4)*r*r;            // one fillet area (0 when r=0)
+  const yFil = hw/2 - 0.2234*r;            // fillet centroid distance from NA (major)
+  const xFil = tw/2 + 0.2234*r;            // fillet centroid distance from web centreline
+  // Iy (major) mm^4 — flanges + web + fillets
   const If = (b*Math.pow(tf,3))/12 + b*tf*Math.pow((h-tf)/2,2); // one flange
   const Iw_web = tw*Math.pow(hw,3)/12;
-  const Iymm = 2*If + Iw_web;
+  const Iymm = 2*If + Iw_web + 4*Af*yFil*yFil;
   const Iy = Iymm/1e4;
   // Iz (minor) mm^4
-  const Izmm = 2*(tf*Math.pow(b,3)/12) + hw*Math.pow(tw,3)/12;
+  const Izmm = 2*(tf*Math.pow(b,3)/12) + hw*Math.pow(tw,3)/12 + 4*Af*xFil*xFil;
   const Iz = Izmm/1e4;
   // Elastic moduli
   const Zely = Iymm/(h/2)/1e3;
   const Zelz = Izmm/(b/2)/1e3;
-  // Plastic modulus (mm^3 -> cm^3)
-  // Sy: 2*[flange about NA + half web about NA]
-  const Symm = b*tf*(h-tf) + tw*Math.pow(hw,2)/4;
+  // Plastic modulus (mm^3 -> cm^3) — flanges + web + fillets
+  const Symm = b*tf*(h-tf) + tw*Math.pow(hw,2)/4 + 4*Af*yFil;
   const Sy = Symm/1e3;
-  const Szmm = tf*Math.pow(b,2)/2 + hw*Math.pow(tw,2)/4;
+  const Szmm = tf*Math.pow(b,2)/2 + hw*Math.pow(tw,2)/4 + 4*Af*xFil;
   const Sz = Szmm/1e3;
   const ry = rt(Iymm/Amm)/10; // cm
   const rz = rt(Izmm/Amm)/10;
@@ -636,9 +697,20 @@ function propsChannel({h,b,c=0,t,r=0,formed='cold'}){
   // plastic modulus (major) approx: Sy ≈ 2*(fl*t*(h/2)) + t*h^2/4 + lips
   const Symm = t*h*h/4 + 2*fl*t*(h/2) + (lip>0? 2*lip*t*(h/2 - lip/2):0);
   const Sy=Symm/1e3;
+  // plastic modulus (minor) — mid-line slice discretization, plastic NA at equal-area split
+  const slices=[{x:0,a:t*web}];                      // web line at x=0
+  const NS=40;
+  for(let i=0;i<NS;i++) slices.push({x:(i+0.5)*fl/NS, a:2*t*fl/NS}); // both flanges
+  if(lip>0) slices.push({x:fl, a:2*t*lip});          // lips at flange tips
+  slices.sort((p,q)=>p.x-q.x);
+  const At=slices.reduce((s,e)=>s+e.a,0);
+  let cum=0, xp=0;
+  for(const e of slices){ if(cum+e.a>=At/2){ xp=e.x; break; } cum+=e.a; }
+  const Szmm=slices.reduce((s,e)=>s+Math.abs(e.x-xp)*e.a,0);
+  const Sz=Szmm/1e3;
   const ry=rt(Iy2/Amm)/10, rz=rt(Izmm/Amm)/10;
   const Jmm=(t*t*t)*(web+2*fl+2*lip)/3; const J=Jmm/1e4;
-  return {A,Iy,Iz,Zely,Zelz,Sy,Sz:Zelz*1.2,ry,rz,J,Iw:0,h,b,c,tw:t,tf:t,t,yc,u:0.9,x: h/t*0.5,
+  return {A,Iy,Iz,Zely,Zelz,Sy,Sz,ry,rz,J,Iw:0,h,b,c,tw:t,tf:t,t,yc,u:0.9,x: h/t*0.5,
           type:'channel',formed, flat:{web,fl,lip}};
 }
 
@@ -746,16 +818,25 @@ function checkBS(sec, grade, loads, member, opts={}){
 
   const A=sec.A, Zx=sec.Zely, Sx=sec.Sy, ry=sec.ry, rz=sec.rz;
 
-  // --- Shear (major) ---
+  // --- Shear ---
+  const minorAxis=(opts.axis==='minor');
   let Av; // shear area mm2
-  if(sec.type==='I') Av=sec.tw*sec.h;
-  else if(sec.type==='RHS') Av=A*100*sec.h/(sec.h+sec.b);
-  else if(sec.type==='CHS') Av=0.6*A*100;
-  else Av=sec.tw*sec.h;
+  if(minorAxis){ // shear parallel to flanges
+    if(sec.type==='I'||sec.type==='channel') Av=0.9*2*sec.b*sec.tf;
+    else if(sec.type==='RHS') Av=A*100*sec.b/(sec.h+sec.b);
+    else if(sec.type==='CHS') Av=0.6*A*100;
+    else Av=0.9*2*sec.b*(sec.tf||sec.t);
+  } else {
+    if(sec.type==='I') Av=sec.tw*sec.h;
+    else if(sec.type==='RHS') Av=A*100*sec.h/(sec.h+sec.b);
+    else if(sec.type==='CHS') Av=0.6*A*100;
+    else Av=sec.tw*sec.h;
+  }
   const Pv=0.6*py*Av/1000; // kN
   const Fv=Math.abs(loads.Vy||0);
   const shearHigh=Fv>0.6*Pv;
-  S('Shear capacity (cl 4.2.3)',`Av = ${fmt(Av,0)} mm², Pv = 0.6·py·Av`,
+  S(`Shear capacity (cl 4.2.3)${minorAxis?' — minor axis':''}`,
+    `Av = ${fmt(Av,0)} mm²${minorAxis?' (flanges, load parallel to flanges)':''}, Pv = 0.6·py·Av`,
     `Pv = ${fmt(Pv,1)} kN,  Fv = ${fmt(Fv,1)} kN → ${fmt(Fv/Pv*100,1)}% ${shearHigh?'(HIGH shear)':'(low shear)'}`,
     Fv<=Pv);
 
@@ -766,15 +847,38 @@ function checkBS(sec, grade, loads, member, opts={}){
   if(cls<=2 && Mc>McCap) Mc=McCap;
   // high shear reduction (simplified cl 4.2.5.3)
   let rho=0;
-  if(shearHigh){ rho=Math.pow(2*Fv/Pv-1,2); Mc=Mc-rho*(py*(Sx-Zx))/1000; }
+  if(shearHigh && !minorAxis){ rho=Math.pow(2*Fv/Pv-1,2); Mc=Mc-rho*(py*(Sx-Zx))/1000; }
   const Mx=Math.abs(loads.Mx||0);
-  S('Moment capacity (cl 4.2.5)',
-    cls<=2?`Class ${cls}: Mc = py·Sx (≤1.2·py·Zx)`:`Class ${cls}: Mc = py·Zx`,
-    `Mc = ${fmt(Mc,1)} kNm,  Mx = ${fmt(Mx,1)} kNm → ${fmt(Mx/Mc*100,1)}%`, Mx<=Mc);
+  const My=Math.abs(loads.My||0);
+  if(Mx>0 || My===0){
+    S('Moment capacity — major axis (cl 4.2.5)',
+      cls<=2?`Class ${cls}: Mcx = py·Sx (≤1.2·py·Zx)`:`Class ${cls}: Mcx = py·Zx`,
+      `Mcx = ${fmt(Mc,1)} kNm,  Mx = ${fmt(Mx,1)} kNm → ${fmt(Mx/Mc*100,1)}%`, Mx<=Mc);
+  }
+  // --- Moment capacity (minor) ---
+  let Mcy=null;
+  const Zz=sec.Zelz, Szp=sec.Sz;
+  if(Zz>0){
+    if(cls<=2 && Szp>0) Mcy=Math.min(py*Szp/1000, 1.2*py*Zz/1000);
+    else Mcy=py*Zz/1000;
+    if(My>0){
+      S('Moment capacity — minor axis (cl 4.2.5)',
+        cls<=2?`Class ${cls}: Mcy = py·Sz (≤1.2·py·Zz); Sz=${fmt(Szp,1)} cm³, Zz=${fmt(Zz,1)} cm³`
+              :`Class ${cls}: Mcy = py·Zz`,
+        `Mcy = ${fmt(Mcy,1)} kNm,  My = ${fmt(My,1)} kNm → ${fmt(My/Mcy*100,1)}%`, My<=Mcy);
+    }
+  }
+  // --- Biaxial bending (cl 4.9 simplified linear) ---
+  let biax=null;
+  if(Mx>0 && My>0 && Mcy){
+    biax=Mx/Mc+My/Mcy;
+    S('Biaxial bending (cl 4.9, linear)','Mx/Mcx + My/Mcy ≤ 1',
+      `= ${fmt(biax,3)} → ${fmt(biax*100,1)}%`, biax<=1);
+  }
 
   // --- Lateral torsional buckling (cl 4.3) ---
   let Mb=Mc, lambdaLT=0, betaW=(cls<=2?1:Zx/Sx), pb=py;
-  if(member.LLT>0 && (sec.type==='I'||sec.type==='channel')){
+  if(member.LLT>0 && !minorAxis && (sec.type==='I'||sec.type==='channel')){
     const LE=member.LLT*1000;
     const lambda=LE/(rz*10);   // minor-axis radius of gyration (BS 5950 "ry")
     const xtor=sec.x||(sec.h/sec.tf);
@@ -786,6 +890,8 @@ function checkBS(sec, grade, loads, member, opts={}){
     S('Lateral-torsional buckling (cl 4.3.6)',
       `λ=LE/ry=${fmt(lambda,1)}, u=${fmt(u,3)}, x=${fmt(xtor,1)}, v=${fmt(v,3)}, βw=${fmt(betaW,3)} → λLT=${fmt(lambdaLT,1)}`,
       `pb=${fmt(pb,0)} N/mm², Mb=${fmt(Mb,1)} kNm, Mx=${fmt(Mx,1)} → ${fmt(Mx/Mb*100,1)}%`, Mx<=Mb);
+  } else if(minorAxis && My>0){
+    S('Lateral-torsional buckling','Bending about the minor axis — LTB not applicable (cl 4.3.1)','Member cannot buckle laterally when bent about z‑z',true);
   } else if(member.LLT>0){
     S('Lateral-torsional buckling','Section fully restrained or LTB not applicable (closed/CHS)','Mb = Mc',true);
   }
@@ -812,37 +918,43 @@ function checkBS(sec, grade, loads, member, opts={}){
       `Pt=${fmt(Pt,1)} kN, Ft=${fmt(-N,1)} → ${fmt(-N/Pt*100,1)}%`, -N<=Pt);
   }
 
-  // --- Combined (simplified cl 4.8.3.3.1) ---
+  // --- Combined (simplified cl 4.8.3) ---
   let combLocal=null, combBuck=null;
-  if(Math.abs(N)>0 && Mx>0){
+  if(Math.abs(N)>0 && (Mx>0||My>0)){
+    const myTermC=(My>0&&Mcy)?My/Mcy:0;
     if(N>=0){
       const Pcs=py*A*100/1000; // squash
-      combLocal = N/Pcs + Mx/Mc;
-      const mLT=opts.mLT??1.0, mx=opts.mx??1.0;
-      combBuck = N/axialRes.Pc + mLT*Mx/Mb; // + mx*Mx/(py*Zx) term for major-axis in-plane
+      combLocal = N/Pcs + Mx/Mc + myTermC;
+      const mLT=opts.mLT??1.0, mx=opts.mx??1.0, myf=opts.my??1.0;
+      combBuck = N/axialRes.Pc + (Mx>0?mLT*Mx/Mb:0) + (My>0&&Mcy?myf*My/Mcy:0);
       S('Combined axial+bending — local capacity (4.8.3.2)',
-        `Fc/(py·Ag) + Mx/Mcx`, `= ${fmt(combLocal,3)} → ${fmt(combLocal*100,1)}%`, combLocal<=1);
+        `Fc/(py·Ag)${Mx>0?' + Mx/Mcx':''}${My>0?' + My/Mcy':''}`,
+        `= ${fmt(combLocal,3)} → ${fmt(combLocal*100,1)}%`, combLocal<=1);
       S('Combined axial+bending — buckling (4.8.3.3.1)',
-        `Fc/Pcy + mLT·MLT/Mb  (m=${mLT})`, `= ${fmt(combBuck,3)} → ${fmt(combBuck*100,1)}%`, combBuck<=1);
+        `Fc/Pc${Mx>0?' + mLT·MLT/Mb':''}${My>0?' + my·My/Mcy':''}  (m=${mLT})`,
+        `= ${fmt(combBuck,3)} → ${fmt(combBuck*100,1)}%`, combBuck<=1);
     } else {
-      combLocal = (-N)/(py*A*100/1000) + Mx/Mc;
-      S('Combined tension+bending (4.8.2)', `Ft/Pt + Mx/Mcx`,
+      combLocal = (-N)/(py*A*100/1000) + Mx/Mc + myTermC;
+      S('Combined tension+bending (4.8.2)',
+        `Ft/Pt${Mx>0?' + Mx/Mcx':''}${My>0?' + My/Mcy':''}`,
         `= ${fmt(combLocal,3)} → ${fmt(combLocal*100,1)}%`, combLocal<=1);
     }
   }
 
   // utilisations
   const utils=[];
-  if(Fv>0) utils.push({name:'Shear', u:Fv/Pv});
-  if(Mx>0) utils.push({name:'Moment (Mc)', u:Mx/Mc});
-  if(Mx>0 && member.LLT>0 && Mb<Mc) utils.push({name:'LTB (Mb)', u:Mx/Mb});
+  if(Fv>0) utils.push({name:minorAxis?'Shear (minor)':'Shear', u:Fv/Pv});
+  if(Mx>0) utils.push({name:'Moment (Mcx)', u:Mx/Mc});
+  if(My>0&&Mcy) utils.push({name:'Moment minor (Mcy)', u:My/Mcy});
+  if(biax!=null) utils.push({name:'Biaxial bending', u:biax});
+  if(Mx>0 && member.LLT>0 && !minorAxis && Mb<Mc) utils.push({name:'LTB (Mb)', u:Mx/Mb});
   if(N>0) utils.push({name:'Compression', u:N/axialRes.Pc});
   if(N<0) utils.push({name:'Tension', u:(-N)/axialRes.Pt});
   if(combLocal!=null) utils.push({name:'Combined (local)', u:combLocal});
   if(combBuck!=null) utils.push({name:'Combined (buckling)', u:combBuck});
   const govern=utils.reduce((a,b)=>b.u>a.u?b:a,{name:'—',u:0});
 
-  return {code:'BS 5950-1:2000', py, cls, steps, utils, govern, pass: govern.u<=1, Mc, Mb, Pv, ...axialRes};
+  return {code:'BS 5950-1:2000', py, cls, steps, utils, govern, pass: govern.u<=1, Mc, Mcy, Mb, Pv, ...axialRes};
 }
 
 /* ============================================================================
@@ -890,26 +1002,56 @@ function checkEC(sec, grade, loads, member, opts={}){
     `fy=${fmt(fy,0)} N/mm², ε=${fmt(eps,3)}, γM0=${gM0}, γM1=${gM1}`);
 
   // shear
+  const minorAxis=(opts.axis==='minor');
   let Av;
-  if(sec.type==='I') Av=Math.max(A*100-2*sec.b*sec.tf+(sec.tw+2*(sec.r||0))*sec.tf, 1.0*sec.h*sec.tw);
-  else if(sec.type==='RHS') Av=A*100*sec.h/(sec.h+sec.b);
-  else if(sec.type==='CHS') Av=2*A*100/Math.PI;
-  else Av=sec.tw*sec.h;
+  if(minorAxis){ // load parallel to flanges (6.2.6(3))
+    if(sec.type==='I'||sec.type==='channel') Av=Math.max(A*100-(sec.h-2*sec.tf)*sec.tw, 2*sec.b*sec.tf);
+    else if(sec.type==='RHS') Av=A*100*sec.b/(sec.h+sec.b);
+    else if(sec.type==='CHS') Av=2*A*100/Math.PI;
+    else Av=2*sec.b*(sec.tf||sec.t);
+  } else {
+    if(sec.type==='I') Av=Math.max(A*100-2*sec.b*sec.tf+(sec.tw+2*(sec.r||0))*sec.tf, 1.0*sec.h*sec.tw);
+    else if(sec.type==='RHS') Av=A*100*sec.h/(sec.h+sec.b);
+    else if(sec.type==='CHS') Av=2*A*100/Math.PI;
+    else Av=sec.tw*sec.h;
+  }
   const VplRd=Av*(fy/rt(3))/gM0/1000;
   const Ved=Math.abs(loads.Vy||0);
-  S('Shear resistance (6.2.6)',`Av=${fmt(Av,0)}mm², Vpl,Rd=Av·fy/√3/γM0`,
+  S(`Shear resistance (6.2.6)${minorAxis?' — minor axis':''}`,
+    `Av=${fmt(Av,0)}mm²${minorAxis?' (A − hw·tw, load parallel to flanges)':''}, Vpl,Rd=Av·fy/√3/γM0`,
     `Vpl,Rd=${fmt(VplRd,1)}kN, VEd=${fmt(Ved,1)} → ${fmt(Ved/VplRd*100,1)}%`, Ved<=VplRd);
 
-  // moment
+  // moment (major)
   let McRd;
   if(cls<=2) McRd=Wply*fy/gM0/1000; else McRd=Wely*fy/gM0/1000;
   const Med=Math.abs(loads.Mx||0);
-  S('Moment resistance (6.2.5)', cls<=2?'Mc,Rd=Wpl·fy/γM0':'Mc,Rd=Wel·fy/γM0',
-    `Mc,Rd=${fmt(McRd,1)}kNm, MEd=${fmt(Med,1)} → ${fmt(Med/McRd*100,1)}%`, Med<=McRd);
+  const MedZ=Math.abs(loads.My||0);
+  if(Med>0 || MedZ===0){
+    S('Moment resistance — major axis (6.2.5)', cls<=2?'Mc,y,Rd=Wpl,y·fy/γM0':'Mc,y,Rd=Wel,y·fy/γM0',
+      `Mc,y,Rd=${fmt(McRd,1)}kNm, MEd=${fmt(Med,1)} → ${fmt(Med/McRd*100,1)}%`, Med<=McRd);
+  }
+  // moment (minor)
+  let MczRd=null;
+  const Wplz=sec.Sz, Welz=sec.Zelz;
+  if(Welz>0){
+    MczRd=(cls<=2&&Wplz>0)?Wplz*fy/gM0/1000:Welz*fy/gM0/1000;
+    if(MedZ>0){
+      S('Moment resistance — minor axis (6.2.5)',
+        cls<=2?`Mc,z,Rd=Wpl,z·fy/γM0; Wpl,z=${fmt(Wplz,1)} cm³`:`Mc,z,Rd=Wel,z·fy/γM0`,
+        `Mc,z,Rd=${fmt(MczRd,1)}kNm, Mz,Ed=${fmt(MedZ,1)} → ${fmt(MedZ/MczRd*100,1)}%`, MedZ<=MczRd);
+    }
+  }
+  // biaxial (6.2.9, linear — conservative vs α/β exponents)
+  let biax=null;
+  if(Med>0 && MedZ>0 && MczRd){
+    biax=Med/McRd+MedZ/MczRd;
+    S('Biaxial bending (6.2.9, linear)','My,Ed/Mc,y,Rd + Mz,Ed/Mc,z,Rd ≤ 1 (conservative)',
+      `= ${fmt(biax,3)} → ${fmt(biax*100,1)}%`, biax<=1);
+  }
 
   // LTB (6.3.2) — proper Mcr for doubly symmetric
   let MbRd=McRd, lamLT=0;
-  if(member.LLT>0 && (sec.type==='I')){
+  if(member.LLT>0 && !minorAxis && (sec.type==='I')){
     const L=member.LLT*1000;
     const Iz=sec.Iz*1e4, Iw=sec.Iw*1e6, It=sec.J*1e4;
     const C1=opts.C1??1.132;
@@ -922,6 +1064,8 @@ function checkEC(sec, grade, loads, member, opts={}){
     S('Lateral-torsional buckling (6.3.2)',
       `Mcr=${fmt(Mcr,1)}kNm (C1=${C1}), λ̄LT=${fmt(lamLT,3)}, curve ${curve}, χLT=${fmt(chiLT,3)}`,
       `Mb,Rd=${fmt(MbRd,1)}kNm, MEd=${fmt(Med,1)} → ${fmt(Med/MbRd*100,1)}%`, Med<=MbRd);
+  } else if(minorAxis && MedZ>0){
+    S('Lateral-torsional buckling','Bending about the minor axis — LTB not applicable (6.3.2.1)','Member cannot buckle laterally when bent about z‑z',true);
   }
 
   // axial
@@ -945,24 +1089,27 @@ function checkEC(sec, grade, loads, member, opts={}){
       `Nt,Rd=${fmt(NtRd,1)}kN, NEd=${fmt(-N,1)} → ${fmt(-N/NtRd*100,1)}%`, -N<=NtRd);
   }
 
-  // combined (simplified 6.3.3, conservative kyy≈1.0)
+  // combined (simplified 6.3.3, conservative k factors = 1.0)
   let comb=null;
-  if(Math.abs(N)>0 && Med>0 && N>=0){
-    const k=opts.kyy??1.0;
-    comb=N/NbRd + k*Med/MbRd;
-    S('Combined (6.3.3, simplified)',`NEd/Nb,Rd + kyy·MEd/Mb,Rd (kyy=${k})`,
+  if(Math.abs(N)>0 && (Med>0||MedZ>0) && N>=0){
+    const k=opts.kyy??1.0, kz=opts.kzz??1.0;
+    comb=N/NbRd + (Med>0?k*Med/MbRd:0) + (MedZ>0&&MczRd?kz*MedZ/MczRd:0);
+    S('Combined (6.3.3, simplified)',
+      `NEd/Nb,Rd${Med>0?' + kyy·My,Ed/Mb,Rd':''}${MedZ>0?' + kzz·Mz,Ed/Mc,z,Rd':''} (k=${k})`,
       `= ${fmt(comb,3)} → ${fmt(comb*100,1)}%`, comb<=1);
   }
 
   const utils=[];
-  if(Ved>0)utils.push({name:'Shear',u:Ved/VplRd});
-  if(Med>0)utils.push({name:'Moment',u:Med/McRd});
-  if(Med>0&&member.LLT>0&&MbRd<McRd)utils.push({name:'LTB',u:Med/MbRd});
+  if(Ved>0)utils.push({name:minorAxis?'Shear (minor)':'Shear',u:Ved/VplRd});
+  if(Med>0)utils.push({name:'Moment (Mc,y)',u:Med/McRd});
+  if(MedZ>0&&MczRd)utils.push({name:'Moment minor (Mc,z)',u:MedZ/MczRd});
+  if(biax!=null)utils.push({name:'Biaxial bending',u:biax});
+  if(Med>0&&member.LLT>0&&!minorAxis&&MbRd<McRd)utils.push({name:'LTB',u:Med/MbRd});
   if(N>0)utils.push({name:'Compression',u:N/NbRd});
   if(N<0)utils.push({name:'Tension',u:(-N)/NtRd});
   if(comb!=null)utils.push({name:'Combined',u:comb});
   const govern=utils.reduce((a,b)=>b.u>a.u?b:a,{name:'—',u:0});
-  return {code:'BS EN 1993-1-1 (EC3)', fy, cls, steps, utils, govern, pass:govern.u<=1};
+  return {code:'BS EN 1993-1-1 (EC3)', fy, cls, steps, utils, govern, pass:govern.u<=1, McRd, MczRd, MbRd};
 }
 
 /* ============================================================================
@@ -973,6 +1120,10 @@ function checkCF(sec, Ys, loads, member, opts={}){
   const py=Ys; // design strength = yield (no cold-work enhancement, conservative)
   const t=sec.t, steps=[]; const S=(t2,d,r,p)=>steps.push({t:t2,detail:d,result:r,pass:p});
   S('Design strength (BS 5950-5 3.3)',`Yield Ys=${fmt(Ys,0)} N/mm² (cold-work enhancement not applied — conservative)`,`py=${fmt(py,0)} N/mm²`);
+  if(Math.abs(loads.My||0)>0){
+    S('Minor-axis bending','My supplied but BS 5950-5 minor-axis effective-section bending is not covered by this tool',
+      'Check minor-axis bending separately (effective widths differ about z‑z)', false);
+  }
 
   // Effective section modulus for bending: compression flange & part of web
   const fc=py; // stress at yield in extreme compression fibre (conservative for Zc)
@@ -1534,61 +1685,65 @@ function momentConnCheck(p){
   const steps=[],utils=[]; const S=(t,d,r,ps)=>steps.push({t,detail:d,result:r,pass:ps});
   const U=(n,u)=>utils.push({name:n,u});
   const M=Math.abs(p.loads.M), V=Math.abs(p.loads.V), N=p.loads.N||0;
+  const nB=Math.max(2,Math.round(p.nBolt||2));   // bolts per row
+  const haunch=Math.max(0,p.haunch||0);           // haunch depth below beam (mm)
 
-  // row lever arms from compression (bottom) flange centre
-  const topFace=sec.h-sec.tf/2;            // top flange centre ~ lever from bottom flange centre = h - tf
-  const hcf=sec.h-sec.tf;                  // between flange centres
+  // Compression datum: bottom of beam, or bottom of haunch if present.
+  // Lever arms measured up from the compression flange centroid.
+  const hcf=sec.h-sec.tf;                  // between beam flange centres
+  const compDatum = haunch>0 ? (sec.tf/2 + haunch) : (sec.tf/2); // dist from beam bottom-flange centre down to compression point
   const rows=[];
-  rows.push({y:hcf+sec.tf/2+p.ex, tag:'extended (above flange)'});
+  rows.push({y:hcf+sec.tf/2+p.ex+compDatum-sec.tf/2, tag:'extended (above top flange)'});
   for(let i=0;i<p.nBelow;i++){
-    rows.push({y:hcf-sec.tf/2-p.p1-i*p.pitch, tag:i===0?'below flange':'inner row '+(i+1)});
+    rows.push({y:hcf-sec.tf/2-p.p1-i*p.pitch+compDatum-sec.tf/2, tag:i===0?'below top flange':'inner row '+(i+1)});
   }
+  // simpler: shift all levers up by (compDatum - sec.tf/2) = haunch (when present)
   rows.forEach(r=>r.y=Math.max(r.y,10));
   const sumY2=rows.reduce((s,r)=>s+r.y*r.y,0);
-  rows.forEach(r=>r.F=M*1e6*r.y/sumY2/1e3); // kN per row (2 bolts)
+  rows.forEach(r=>r.F=M*1e6*r.y/sumY2/1e3); // kN per row (nB bolts)
   S('Design actions','Elastic bolt-row distribution Fi = M·hi/Σhj²',
-    `M = ${M.toFixed(1)} kNm · V = ${V.toFixed(1)} kN${N?` · N = ${N.toFixed(1)} kN`:''} · ${rows.length} tension row(s)`);
+    `M = ${M.toFixed(1)} kNm · V = ${V.toFixed(1)} kN${N?` · N = ${N.toFixed(1)} kN`:''} · ${rows.length} tension row(s) × ${nB} bolts${haunch>0?` · haunch ${haunch} mm (lever arms increased)`:''}`);
 
   // T-stub / row capacity
   const m=Math.max((p.gauge-sec.tw)/2-0.8*p.weldS,10);
   const e=(p.bp-p.gauge)/2;
-  let MRd=0, worstRow={u:0};
+  let worstRow={u:0};
   rows.forEach((r,i)=>{
     const beff=Math.min(4*m+1.25*e, 2*Math.PI*m, i>0?p.pitch:1e9);
     const F1=beff*p.tp*p.tp*py/m/1e3;        // plate mode-1
     const Fweb=py*sec.tw*Math.min(beff, p.pitch||beff)/1e3; // web tension
-    const cap=Math.min(F1, 2*bc.Pt, i>0?Fweb:1e9);
+    const cap=Math.min(F1, nB*bc.Pt, i>0?Fweb:1e9);
     const u=r.F/cap;
     if(u>worstRow.u) worstRow={u,row:i+1};
-    MRd+=Math.min(cap,r.F>0?cap:cap)*r.y/1e3*1; // potential
     S(`Row ${i+1} — ${r.tag} (h = ${r.y.toFixed(0)} mm)`,
-      `F = ${r.F.toFixed(1)} kN · plate F1 = ${F1.toFixed(1)} (beff=${beff.toFixed(0)}, m=${m.toFixed(0)}) · bolts 2Pt = ${(2*bc.Pt).toFixed(1)}${i>0?` · web = ${Fweb.toFixed(1)}`:''}`,
+      `F = ${r.F.toFixed(1)} kN · plate F1 = ${F1.toFixed(1)} (beff=${beff.toFixed(0)}, m=${m.toFixed(0)}) · bolts ${nB}Pt = ${(nB*bc.Pt).toFixed(1)}${i>0?` · web = ${Fweb.toFixed(1)}`:''}`,
       `capacity = ${cap.toFixed(1)} kN → ${(u*100).toFixed(1)}%`, u<=1);
   });
   U('Bolt rows (worst)',worstRow.u);
   const MRdPot=rows.reduce((s,r,i)=>{
     const beff=Math.min(4*m+1.25*e,2*Math.PI*m,i>0?p.pitch:1e9);
-    const cap=Math.min(beff*p.tp*p.tp*py/m/1e3, 2*bc.Pt, i>0?py*sec.tw*Math.min(beff,p.pitch)/1e3:1e9);
+    const cap=Math.min(beff*p.tp*p.tp*py/m/1e3, nB*bc.Pt, i>0?py*sec.tw*Math.min(beff,p.pitch)/1e3:1e9);
     return s+cap*r.y/1e3;
   },0);
   S('Moment capacity (potential)','MRd = Σ (row capacity)·hi',
-    `MRd = ${MRdPot.toFixed(1)} kNm vs M = ${M.toFixed(1)} → ${(M/MRdPot*100).toFixed(1)}%`, M<=MRdPot);
+    `MRd = ${MRdPot.toFixed(1)} kNm vs M = ${M.toFixed(1)} → ${(M/MRdPot*100).toFixed(1)}%${haunch>0?' (haunch adds lever arm)':''}`, M<=MRdPot);
   U('Moment capacity',M/MRdPot);
 
-  // compression flange
+  // compression flange (haunch toe if present — larger effective bearing width via haunch flange)
   const C=rows.reduce((s,r)=>s+r.F,0)+Math.max(N,0);
-  const Cres=1.4*py*sec.b*sec.tf/1e3;
-  S('Compression flange bearing','C = ΣFi (+N) ≤ 1.4·py·b·tf (green-book potential)',
+  const bComp = haunch>0 ? sec.b*1.0 : sec.b;
+  const Cres=1.4*py*bComp*sec.tf/1e3;
+  S('Compression flange bearing',haunch>0?'C ≤ 1.4·py·b·tf at haunch toe (provide haunch flange ≥ beam flange)':'C = ΣFi (+N) ≤ 1.4·py·b·tf',
     `C = ${C.toFixed(1)} kN vs ${Cres.toFixed(1)} → ${(C/Cres*100).toFixed(1)}%`, C<=Cres);
   U('Compression flange',C/Cres);
 
   // bolt shear + combined
-  const nBolts=2*rows.length+2; // + compression pair
+  const nBolts=nB*rows.length+nB; // + compression pair(s)
   const Fv=V/nBolts;
-  S('Bolt shear',`${bc.lawS}; ${nBolts} bolts (incl. compression pair)`,
+  S('Bolt shear',`${bc.lawS}; ${nBolts} bolts total`,
     `Ps = ${bc.Ps.toFixed(1)} kN vs Fv = ${Fv.toFixed(2)} → ${(Fv/bc.Ps*100).toFixed(1)}%`, Fv<=bc.Ps);
   U('Bolt shear',Fv/bc.Ps);
-  const Ftmax=Math.max(...rows.map(r=>r.F))/2;
+  const Ftmax=Math.max(...rows.map(r=>r.F))/nB;
   const comb = code==='EC3'? Fv/bc.Ps+Ftmax/(1.4*bc.Pt) : (Fv/bc.Ps+Ftmax/bc.Pt)/1.4;
   S('Bolt combined',(code==='EC3'?'Fv/FvRd + Ft/(1.4FtRd) ≤ 1':'(Fs/Ps + Ft/Pt) ≤ 1.4'),
     `= ${comb.toFixed(3)} → ${(comb*100).toFixed(1)}%`, comb<=1);
@@ -1608,11 +1763,27 @@ function momentConnCheck(p){
   }
   const govern=utils.reduce((x,y)=>y.u>x.u?y:x,{name:'—',u:0});
   return {code:code==='EC3'?'BS EN 1993-1-8 (simplified beam-side)':'BS 5950 / SCI moment connections (simplified beam-side)',
-    steps,utils,govern,rows,m,MRd:MRdPot,pass:govern.u<=1};
+    steps,utils,govern,rows,m,MRd:MRdPot,nB,haunch,pass:govern.u<=1};
+}
+
+/* suggested base-plate size from column + bolt clearances (mm)
+   edge = distance bolt centre → plate edge; clear = bolt centre → steel face.
+   Returns {B,D,tp} rounded up to 10 mm. */
+function suggestBasePlate(sec, boltSize, edge, clear){
+  const b=BOLTS[boltSize]||BOLTS.M20;
+  edge = edge || Math.max(1.5*b.d0, 30);      // bolt centre → plate edge (≥1.5·hole dia)
+  clear= clear|| Math.max(b.d+20, 40);        // bolt centre → steel face (socket/washer room)
+  // width across flanges: section breadth + modest edge each side
+  const across = sec.b + 2*edge + 30;
+  // depth along web: HD bolts sit outside the flanges → section depth + clear + edge each end
+  const along  = sec.h + 2*(clear + edge);
+  const B=Math.ceil(across/10)*10, D=Math.ceil(along/10)*10;
+  const tp=Math.max(15, Math.round((Math.max((B-sec.b)/2,(D-sec.h)/2)*0.4)/5)*5); // outstand-based starter
+  return {B,D,tp,edge:Math.round(edge),clear:Math.round(clear)};
 }
 
 
-const LIBRARY = [{"name":"UB 178x102x19","fam":"UB","type":"I","h":177.8,"b":101.2,"tw":4.8,"tf":7.9,"r":7.6,"A":24.26,"Iy":1325,"Iz":136.6,"Zely":149,"Zelz":27,"Sy":167.3,"Sz":41.4,"ry":7.39,"rz":2.37,"J":3.9,"Iw":9859,"u":0.877,"x":23.9,"computed":true},{"name":"UB 203x133x25","fam":"UB","type":"I","h":203.2,"b":133.2,"tw":5.7,"tf":7.8,"r":7.6,"A":31.97,"Iy":2298,"Iz":307.5,"Zely":226.2,"Zelz":46.2,"Sy":253.2,"Sz":70.7,"ry":8.48,"rz":3.1,"J":5.4,"Iw":29353,"u":0.869,"x":27,"computed":true},{"name":"UB 203x133x30","fam":"UB","type":"I","h":206.8,"b":133.9,"tw":6.4,"tf":9.6,"r":7.6,"A":38.21,"Iy":2853,"Iz":384.5,"Zely":276,"Zelz":57.4,"Sy":309.8,"Sz":88,"ry":8.64,"rz":3.17,"J":9.5,"Iw":37383,"u":0.875,"x":22.3,"computed":true},{"name":"UB 254x146x31","fam":"UB","type":"I","h":251.4,"b":146.1,"tw":6,"tf":8.6,"r":7.6,"A":39.68,"Iy":4347,"Iz":447.4,"Zely":345.9,"Zelz":61.2,"Sy":387.3,"Sz":93.9,"ry":10.47,"rz":3.36,"J":7.9,"Iw":65939,"u":0.873,"x":30.8,"computed":true},{"name":"UB 254x146x37","fam":"UB","type":"I","h":256,"b":146.4,"tw":6.3,"tf":10.9,"r":7.6,"A":47.17,"Iy":5471,"Iz":570.5,"Zely":427.4,"Zelz":77.9,"Sy":477.5,"Sz":119.1,"ry":10.77,"rz":3.48,"J":14.6,"Iw":85683,"u":0.884,"x":24.9,"computed":true},{"name":"UB 305x102x28","fam":"UB","type":"I","h":308.7,"b":101.8,"tw":6,"tf":8.8,"r":7.6,"A":35.88,"Iy":5263,"Iz":155.3,"Zely":341,"Zelz":30.5,"Sy":395.8,"Sz":48.2,"ry":12.11,"rz":2.08,"J":6.7,"Iw":34909,"u":0.851,"x":39.2,"computed":true},{"name":"UB 305x165x40","fam":"UB","type":"I","h":303.4,"b":165,"tw":6,"tf":10.2,"r":8.9,"A":51.32,"Iy":8370,"Iz":764.2,"Zely":551.8,"Zelz":92.6,"Sy":613.6,"Sz":141.4,"ry":12.77,"rz":3.86,"J":13.7,"Iw":164232,"u":0.882,"x":32.1,"computed":true},{"name":"UB 305x165x54","fam":"UB","type":"I","h":310.4,"b":166.9,"tw":7.9,"tf":13.7,"r":8.9,"A":68.77,"Iy":11564,"Iz":1062.7,"Zely":745.1,"Zelz":127.3,"Sy":836.6,"Sz":195.2,"ry":12.97,"rz":3.93,"J":33.3,"Iw":233878,"u":0.884,"x":24.1,"computed":true},{"name":"UB 356x171x51","fam":"UB","type":"I","h":355,"b":171.5,"tw":7.4,"tf":11.5,"r":10.2,"A":64.91,"Iy":13897,"Iz":967.9,"Zely":782.9,"Zelz":112.9,"Sy":881.4,"Sz":173.7,"ry":14.63,"rz":3.86,"J":21.9,"Iw":285520,"u":0.873,"x":33.5,"computed":true},{"name":"UB 356x171x67","fam":"UB","type":"I","h":363.4,"b":173.2,"tw":9.1,"tf":15.7,"r":10.2,"A":85.49,"Iy":19223,"Iz":1361.6,"Zely":1058,"Zelz":157.2,"Sy":1196.2,"Sz":242.4,"ry":15,"rz":3.99,"J":53,"Iw":411535,"u":0.881,"x":25,"computed":true},{"name":"UB 406x178x60","fam":"UB","type":"I","h":406.4,"b":177.9,"tw":7.9,"tf":12.8,"r":10.2,"A":76.52,"Iy":21280,"Iz":1202.7,"Zely":1047.3,"Zelz":135.2,"Sy":1182.7,"Sz":208.5,"ry":16.68,"rz":3.96,"J":31.1,"Iw":465803,"u":0.873,"x":34.9,"computed":true},{"name":"UB 406x178x74","fam":"UB","type":"I","h":412.8,"b":179.5,"tw":9.5,"tf":16,"r":10.2,"A":94.51,"Iy":26994,"Iz":1545,"Zely":1307.8,"Zelz":172.1,"Sy":1484,"Sz":266.4,"ry":16.9,"rz":4.04,"J":59.9,"Iw":608150,"u":0.877,"x":28.2,"computed":true},{"name":"UB 457x152x60","fam":"UB","type":"I","h":454.6,"b":152.9,"tw":8.1,"tf":13.3,"r":10.2,"A":76.23,"Iy":25100,"Iz":794.3,"Zely":1104.3,"Zelz":103.9,"Sy":1268.4,"Sz":162.5,"ry":18.15,"rz":3.23,"J":31.6,"Iw":386695,"u":0.861,"x":38.8,"computed":true},{"name":"UB 457x191x67","fam":"UB","type":"I","h":453.4,"b":189.9,"tw":8.5,"tf":12.7,"r":10.2,"A":85.51,"Iy":28980,"Iz":1451.7,"Zely":1278.3,"Zelz":152.9,"Sy":1452.1,"Sz":236.7,"ry":18.41,"rz":4.12,"J":34.7,"Iw":704870,"u":0.867,"x":39.2,"computed":true},{"name":"UB 457x191x82","fam":"UB","type":"I","h":460,"b":191.3,"tw":9.9,"tf":16,"r":10.2,"A":104.48,"Iy":36651,"Iz":1870.3,"Zely":1593.5,"Zelz":195.5,"Sy":1812.4,"Sz":303.3,"ry":18.73,"rz":4.23,"J":66.1,"Iw":921773,"u":0.872,"x":31.6,"computed":true},{"name":"UB 533x210x92","fam":"UB","type":"I","h":533.1,"b":209.3,"tw":10.1,"tf":15.6,"r":12.7,"A":117.38,"Iy":54375,"Iz":2388.2,"Zely":2040,"Zelz":228.2,"Sy":2325.7,"Sz":354.5,"ry":21.52,"rz":4.51,"J":70.2,"Iw":1598918,"u":0.865,"x":37.9,"computed":true},{"name":"UB 533x210x101","fam":"UB","type":"I","h":536.7,"b":210,"tw":10.8,"tf":17.4,"r":12.7,"A":128.67,"Iy":60666,"Iz":2691,"Zely":2260.7,"Zelz":256.3,"Sy":2577.7,"Sz":398.3,"ry":21.71,"rz":4.57,"J":94.8,"Iw":1814194,"u":0.868,"x":34.2,"computed":true},{"name":"UB 610x229x113","fam":"UB","type":"I","h":607.6,"b":228.2,"tw":11.1,"tf":17.3,"r":12.7,"A":143.94,"Iy":86204,"Iz":3433,"Zely":2837.5,"Zelz":300.9,"Sy":3241.5,"Sz":468.1,"ry":24.47,"rz":4.88,"J":104.9,"Iw":2990572,"u":0.865,"x":39.1,"computed":true},{"name":"UB 610x229x140","fam":"UB","type":"I","h":617.2,"b":230.2,"tw":13.1,"tf":22.1,"r":12.7,"A":178.2,"Iy":110663,"Iz":4503.9,"Zely":3586,"Zelz":391.3,"Sy":4102.8,"Sz":610.1,"ry":24.92,"rz":5.03,"J":208.6,"Iw":3987615,"u":0.871,"x":31.1,"computed":true},{"name":"UB 686x254x152","fam":"UB","type":"I","h":687.5,"b":254.5,"tw":13.2,"tf":21,"r":15.2,"A":194.08,"Iy":148332,"Iz":5781.8,"Zely":4315.1,"Zelz":454.4,"Sy":4937.1,"Sz":708.2,"ry":27.65,"rz":5.46,"J":206.6,"Iw":6420990,"u":0.865,"x":36.6,"computed":true},{"name":"UB 762x267x173","fam":"UB","type":"I","h":762.2,"b":266.7,"tw":14.3,"tf":21.6,"r":16.5,"A":220.37,"Iy":202323,"Iz":6846.7,"Zely":5308.9,"Zelz":513.4,"Sy":6114.5,"Sz":804.9,"ry":30.3,"rz":5.57,"J":249.3,"Iw":9388404,"u":0.858,"x":39.4,"computed":true},{"name":"UB 914x305x201","fam":"UB","type":"I","h":903,"b":303.3,"tw":15.1,"tf":20.2,"r":19.1,"A":255.92,"Iy":319543,"Iz":9418,"Zely":7077.4,"Zelz":621,"Sy":8217.5,"Sz":978.3,"ry":35.34,"rz":6.07,"J":265.7,"Iw":18349522,"u":0.847,"x":49,"computed":true},{"name":"UC 152x152x23","fam":"UC","type":"I","h":152.4,"b":152.2,"tw":5.8,"tf":6.8,"r":7.6,"A":29.25,"Iy":1227,"Iz":399.8,"Zely":161,"Zelz":52.5,"Sy":178.6,"Sz":79.9,"ry":6.48,"rz":3.7,"J":4.1,"Iw":21189,"u":0.83,"x":22,"computed":true},{"name":"UC 152x152x30","fam":"UC","type":"I","h":157.6,"b":152.9,"tw":6.5,"tf":9.4,"r":7.6,"A":38.26,"Iy":1725,"Iz":560.3,"Zely":218.9,"Zelz":73.3,"Sy":244.3,"Sz":111.3,"ry":6.71,"rz":3.83,"J":9.7,"Iw":30767,"u":0.841,"x":16.6,"computed":true},{"name":"UC 152x152x37","fam":"UC","type":"I","h":161.8,"b":154.4,"tw":8,"tf":11.5,"r":7.6,"A":47.11,"Iy":2188,"Iz":706.1,"Zely":270.4,"Zelz":91.5,"Sy":305.4,"Sz":139.3,"ry":6.81,"rz":3.87,"J":18,"Iw":39876,"u":0.843,"x":13.8,"computed":true},{"name":"UC 203x203x46","fam":"UC","type":"I","h":203.2,"b":203.6,"tw":7.2,"tf":11,"r":10.2,"A":58.73,"Iy":4498,"Iz":1547.9,"Zely":442.7,"Zelz":152,"Sy":489.6,"Sz":230.3,"ry":8.75,"rz":5.13,"J":20.3,"Iw":142949,"u":0.838,"x":18.5,"computed":true},{"name":"UC 203x203x60","fam":"UC","type":"I","h":209.6,"b":205.8,"tw":9.4,"tf":14.2,"r":10.2,"A":76.37,"Iy":6055,"Iz":2064.1,"Zely":577.7,"Zelz":200.6,"Sy":648.2,"Sz":304.7,"ry":8.9,"rz":5.2,"J":44.3,"Iw":197027,"u":0.84,"x":14.5,"computed":true},{"name":"UC 203x203x71","fam":"UC","type":"I","h":215.8,"b":206.4,"tw":10,"tf":17.3,"r":10.2,"A":90.43,"Iy":7548,"Iz":2536.8,"Zely":699.6,"Zelz":245.8,"Sy":790.9,"Sz":373,"ry":9.14,"rz":5.3,"J":77.3,"Iw":249887,"u":0.847,"x":12.2,"computed":true},{"name":"UC 254x254x73","fam":"UC","type":"I","h":254.1,"b":254.6,"tw":8.6,"tf":14.2,"r":12.7,"A":93.1,"Iy":11240,"Iz":3907,"Zely":884.7,"Zelz":306.9,"Sy":976.8,"Sz":464.4,"ry":10.99,"rz":6.48,"J":53.4,"Iw":562142,"u":0.841,"x":17.9,"computed":true},{"name":"UC 254x254x89","fam":"UC","type":"I","h":260.3,"b":256.3,"tw":10.3,"tf":17.3,"r":12.7,"A":113.31,"Iy":14100,"Iz":4856.5,"Zely":1083.4,"Zelz":379,"Sy":1208.6,"Sz":574.2,"ry":11.16,"rz":6.55,"J":96.7,"Iw":716930,"u":0.843,"x":14.9,"computed":true},{"name":"UC 254x254x107","fam":"UC","type":"I","h":266.7,"b":258.8,"tw":12.8,"tf":20.5,"r":12.7,"A":136.38,"Iy":17343,"Iz":5926.3,"Zely":1300.5,"Zelz":458,"Sy":1469.2,"Sz":695.8,"ry":11.28,"rz":6.59,"J":164.4,"Iw":898050,"u":0.843,"x":12.7,"computed":true},{"name":"UC 305x305x97","fam":"UC","type":"I","h":307.9,"b":305.3,"tw":9.9,"tf":15.4,"r":15.2,"A":123.45,"Iy":21887,"Iz":7306.1,"Zely":1421.7,"Zelz":478.6,"Sy":1565.3,"Sz":724.5,"ry":13.32,"rz":7.69,"J":83.3,"Iw":1562697,"u":0.841,"x":20.2,"computed":true},{"name":"UC 305x305x118","fam":"UC","type":"I","h":314.5,"b":307.4,"tw":12,"tf":18.7,"r":15.2,"A":150.2,"Iy":27310,"Iz":9057.2,"Zely":1736.7,"Zelz":589.3,"Sy":1930.7,"Sz":893.5,"ry":13.48,"rz":7.77,"J":150,"Iw":1981206,"u":0.843,"x":16.8,"computed":true},{"name":"UC 305x305x137","fam":"UC","type":"I","h":320.5,"b":309.2,"tw":13.8,"tf":21.7,"r":15.2,"A":174.42,"Iy":32452,"Iz":10697.3,"Zely":2025.1,"Zelz":691.9,"Sy":2269.7,"Sz":1050.5,"ry":13.64,"rz":7.83,"J":234.9,"Iw":2387672,"u":0.844,"x":14.6,"computed":true},{"name":"UC 356x368x129","fam":"UC","type":"I","h":355.6,"b":368.6,"tw":10.4,"tf":17.5,"r":15.2,"A":164.34,"Iy":39757,"Iz":14609.7,"Zely":2236.1,"Zelz":792.7,"Sy":2448.2,"Sz":1197.5,"ry":15.55,"rz":9.43,"J":143.7,"Iw":4175154,"u":0.837,"x":20.5,"computed":true},{"name":"UC 356x368x177","fam":"UC","type":"I","h":368.2,"b":372.6,"tw":14.4,"tf":23.8,"r":15.2,"A":225.51,"Iy":56630,"Iz":20526.9,"Zely":3076,"Zelz":1101.8,"Sy":3424.1,"Sz":1668.7,"ry":15.85,"rz":9.54,"J":366.8,"Iw":6086805,"u":0.839,"x":15.3,"computed":true},{"name":"PFC 100x50x10","fam":"PFC","type":"channel","h":100,"b":50,"tw":5,"tf":8.5,"r":9,"A":10,"Iy":167,"Iz":26,"Zely":33.3,"Zelz":6.9,"Sy":37.5,"Sz":8.3,"ry":4.08,"rz":1.61,"J":0.8,"Iw":0,"u":0.9,"x":11.8,"computed":true},{"name":"PFC 125x65x15","fam":"PFC","type":"channel","h":125,"b":65,"tw":5.5,"tf":9.5,"r":12,"A":14.03,"Iy":369,"Iz":62.2,"Zely":59,"Zelz":12.8,"Sy":66.2,"Sz":15.4,"ry":5.13,"rz":2.11,"J":1.4,"Iw":0,"u":0.9,"x":13.2,"computed":true},{"name":"PFC 150x75x18","fam":"PFC","type":"channel","h":150,"b":75,"tw":5.5,"tf":10,"r":12,"A":16.5,"Iy":619,"Iz":96.7,"Zely":82.5,"Zelz":17.2,"Sy":92.8,"Sz":20.6,"ry":6.12,"rz":2.42,"J":1.7,"Iw":0,"u":0.9,"x":15,"computed":true},{"name":"PFC 150x90x24","fam":"PFC","type":"channel","h":150,"b":90,"tw":6.5,"tf":12,"r":12,"A":21.45,"Iy":841,"Iz":186.7,"Zely":112.1,"Zelz":28.5,"Sy":124.3,"Sz":34.2,"ry":6.26,"rz":2.95,"J":3,"Iw":0,"u":0.9,"x":12.5,"computed":true},{"name":"PFC 180x90x26","fam":"PFC","type":"channel","h":180,"b":90,"tw":6.5,"tf":12.5,"r":12,"A":23.4,"Iy":1264,"Iz":197.4,"Zely":140.4,"Zelz":29.3,"Sy":157.9,"Sz":35.1,"ry":7.35,"rz":2.9,"J":3.3,"Iw":0,"u":0.9,"x":14.4,"computed":true},{"name":"PFC 200x75x23","fam":"PFC","type":"channel","h":200,"b":75,"tw":6,"tf":12.5,"r":12,"A":21,"Iy":1300,"Iz":114.5,"Zely":130,"Zelz":19.4,"Sy":150,"Sz":23.3,"ry":7.87,"rz":2.34,"J":2.5,"Iw":0,"u":0.9,"x":16,"computed":true},{"name":"PFC 200x90x30","fam":"PFC","type":"channel","h":200,"b":90,"tw":7,"tf":14,"r":12,"A":26.6,"Iy":1727,"Iz":219.3,"Zely":172.7,"Zelz":31.9,"Sy":196,"Sz":38.3,"ry":8.06,"rz":2.87,"J":4.3,"Iw":0,"u":0.9,"x":14.3,"computed":true},{"name":"PFC 230x90x32","fam":"PFC","type":"channel","h":230,"b":90,"tw":7.5,"tf":14,"r":12,"A":30.75,"Iy":2546,"Iz":244.5,"Zely":221.4,"Zelz":34.8,"Sy":254.4,"Sz":41.8,"ry":9.1,"rz":2.82,"J":5.8,"Iw":0,"u":0.9,"x":16.4,"computed":true},{"name":"PFC 260x90x35","fam":"PFC","type":"channel","h":260,"b":90,"tw":8,"tf":14,"r":12,"A":35.2,"Iy":3605,"Iz":269.5,"Zely":277.3,"Zelz":37.6,"Sy":322.4,"Sz":45.2,"ry":10.12,"rz":2.77,"J":7.5,"Iw":0,"u":0.9,"x":18.6,"computed":true},{"name":"PFC 300x90x41","fam":"PFC","type":"channel","h":300,"b":90,"tw":9,"tf":15.5,"r":12,"A":43.2,"Iy":5670,"Iz":314.4,"Zely":378,"Zelz":43,"Sy":445.5,"Sz":51.6,"ry":11.46,"rz":2.7,"J":11.7,"Iw":0,"u":0.9,"x":19.4,"computed":true},{"name":"PFC 300x100x46","fam":"PFC","type":"channel","h":300,"b":100,"tw":9,"tf":16.5,"r":15,"A":45,"Iy":6075,"Iz":420,"Zely":405,"Zelz":52.5,"Sy":472.5,"Sz":63,"ry":11.62,"rz":3.06,"J":12.2,"Iw":0,"u":0.9,"x":18.2,"computed":true},{"name":"IPE80","fam":"IPE","type":"I","h":80,"b":46,"tw":3.8,"tf":5.2,"r":5,"A":7.64,"Iy":80.1,"Iz":8.49,"Zely":20,"Zelz":3.69,"Sy":23.3,"Sz":5.82,"ry":3.24,"rz":1.05,"J":0.7,"Iw":4260,"u":0.878,"x":14},{"name":"IPE100","fam":"IPE","type":"I","h":100,"b":55,"tw":4.1,"tf":5.7,"r":7,"A":10.3,"Iy":171,"Iz":15.9,"Zely":34.2,"Zelz":5.79,"Sy":39.4,"Sz":9.15,"ry":4.07,"rz":1.24,"J":1.21,"Iw":12200,"u":0.879,"x":15.6},{"name":"IPE120","fam":"IPE","type":"I","h":120,"b":64,"tw":4.4,"tf":6.3,"r":7,"A":13.2,"Iy":318,"Iz":27.7,"Zely":53,"Zelz":8.65,"Sy":60.8,"Sz":13.6,"ry":4.9,"rz":1.45,"J":1.74,"Iw":29400,"u":0.88,"x":17.7},{"name":"IPE140","fam":"IPE","type":"I","h":140,"b":73,"tw":4.7,"tf":6.9,"r":7,"A":16.4,"Iy":541,"Iz":44.9,"Zely":77.3,"Zelz":12.3,"Sy":88.4,"Sz":19.2,"ry":5.74,"rz":1.65,"J":2.44,"Iw":62400,"u":0.881,"x":19.5},{"name":"IPE160","fam":"IPE","type":"I","h":160,"b":82,"tw":5,"tf":7.4,"r":9,"A":20.1,"Iy":869,"Iz":68.3,"Zely":109,"Zelz":16.7,"Sy":124,"Sz":26.1,"ry":6.58,"rz":1.84,"J":3.6,"Iw":122000,"u":0.881,"x":20.4},{"name":"IPE180","fam":"IPE","type":"I","h":180,"b":91,"tw":5.3,"tf":8,"r":9,"A":23.9,"Iy":1320,"Iz":101,"Zely":146,"Zelz":22.2,"Sy":166,"Sz":34.6,"ry":7.42,"rz":2.05,"J":4.79,"Iw":225000,"u":0.881,"x":21.7},{"name":"IPE200","fam":"IPE","type":"I","h":200,"b":100,"tw":5.6,"tf":8.5,"r":12,"A":28.5,"Iy":1940,"Iz":142,"Zely":194,"Zelz":28.5,"Sy":221,"Sz":44.6,"ry":8.26,"rz":2.24,"J":6.29,"Iw":395000,"u":0.883,"x":23.1},{"name":"IPE220","fam":"IPE","type":"I","h":220,"b":110,"tw":5.9,"tf":9.2,"r":12,"A":33.4,"Iy":2770,"Iz":205,"Zely":252,"Zelz":37.3,"Sy":285,"Sz":58.1,"ry":9.11,"rz":2.48,"J":8.19,"Iw":677000,"u":0.883,"x":24.1},{"name":"IPE240","fam":"IPE","type":"I","h":240,"b":120,"tw":6.2,"tf":9.8,"r":15,"A":39.1,"Iy":3890,"Iz":284,"Zely":324,"Zelz":47.3,"Sy":367,"Sz":73.9,"ry":9.97,"rz":2.69,"J":10.6,"Iw":1120000,"u":0.886,"x":25},{"name":"IPE270","fam":"IPE","type":"I","h":270,"b":135,"tw":6.6,"tf":10.2,"r":15,"A":45.9,"Iy":5790,"Iz":420,"Zely":429,"Zelz":62.2,"Sy":484,"Sz":97.4,"ry":11.2,"rz":3.02,"J":15.3,"Iw":2080000,"u":0.884,"x":25.5},{"name":"IPE300","fam":"IPE","type":"I","h":300,"b":150,"tw":7.1,"tf":10.7,"r":15,"A":53.8,"Iy":8360,"Iz":604,"Zely":557,"Zelz":80.5,"Sy":628,"Sz":126,"ry":12.5,"rz":3.35,"J":20.2,"Iw":3560000,"u":0.882,"x":26.7},{"name":"IPE330","fam":"IPE","type":"I","h":330,"b":160,"tw":7.5,"tf":11.5,"r":18,"A":62.6,"Iy":11800,"Iz":788,"Zely":713,"Zelz":98.5,"Sy":804,"Sz":154,"ry":13.7,"rz":3.55,"J":28.3,"Iw":5540000,"u":0.883,"x":26.8},{"name":"IPE360","fam":"IPE","type":"I","h":360,"b":170,"tw":8,"tf":12.7,"r":18,"A":72.7,"Iy":16300,"Iz":1040,"Zely":904,"Zelz":122,"Sy":1010,"Sz":191,"ry":15,"rz":3.79,"J":37.9,"Iw":8420000,"u":0.88,"x":27.2},{"name":"IPE400","fam":"IPE","type":"I","h":400,"b":180,"tw":8.6,"tf":13.5,"r":21,"A":84.5,"Iy":23200,"Iz":1320,"Zely":1160,"Zelz":146,"Sy":1300,"Sz":229,"ry":16.6,"rz":3.95,"J":51.1,"Iw":13100000,"u":0.879,"x":28.1},{"name":"IPE450","fam":"IPE","type":"I","h":450,"b":190,"tw":9.4,"tf":14.6,"r":21,"A":98.8,"Iy":33700,"Iz":1680,"Zely":1500,"Zelz":176,"Sy":1700,"Sz":276,"ry":18.5,"rz":4.12,"J":66.3,"Iw":20400000,"u":0.878,"x":30.1},{"name":"IPE500","fam":"IPE","type":"I","h":500,"b":200,"tw":10.2,"tf":16,"r":21,"A":116,"Iy":48200,"Iz":2140,"Zely":1930,"Zelz":214,"Sy":2190,"Sz":336,"ry":20.4,"rz":4.31,"J":91.9,"Iw":33100000,"u":0.873,"x":30.8},{"name":"IPE550","fam":"IPE","type":"I","h":550,"b":210,"tw":11.1,"tf":17.2,"r":24,"A":134,"Iy":67100,"Iz":2670,"Zely":2440,"Zelz":254,"Sy":2780,"Sz":400,"ry":22.3,"rz":4.45,"J":123,"Iw":49800000,"u":0.874,"x":31.5},{"name":"IPE600","fam":"IPE","type":"I","h":600,"b":220,"tw":12,"tf":19,"r":24,"A":156,"Iy":92100,"Iz":3390,"Zely":3070,"Zelz":308,"Sy":3510,"Sz":485,"ry":24.3,"rz":4.66,"J":165,"Iw":72700000,"u":0.872,"x":32},{"name":"HEA100","fam":"HEA","type":"I","h":96,"b":100,"tw":5,"tf":8,"r":12,"A":21.2,"Iy":349,"Iz":134,"Zely":72.8,"Zelz":26.8,"Sy":83,"Sz":41.2,"ry":4.06,"rz":2.51,"J":10.3,"Iw":173000,"u":0.836,"x":7.1},{"name":"HEA120","fam":"HEA","type":"I","h":114,"b":120,"tw":5,"tf":8,"r":12,"A":25.3,"Iy":606,"Iz":231,"Zely":106,"Zelz":38.5,"Sy":119,"Sz":58.8,"ry":4.89,"rz":3.02,"J":11.9,"Iw":374000,"u":0.836,"x":8.7},{"name":"HEA140","fam":"HEA","type":"I","h":133,"b":140,"tw":5.5,"tf":8.5,"r":12,"A":31.4,"Iy":1030,"Iz":389,"Zely":155,"Zelz":55.6,"Sy":173,"Sz":84.8,"ry":5.73,"rz":3.52,"J":16.1,"Iw":771000,"u":0.836,"x":9.8},{"name":"HEA160","fam":"HEA","type":"I","h":152,"b":160,"tw":6,"tf":9,"r":15,"A":38.8,"Iy":1670,"Iz":616,"Zely":220,"Zelz":77,"Sy":245,"Sz":117,"ry":6.57,"rz":3.98,"J":22,"Iw":1490000,"u":0.838,"x":10.7},{"name":"HEA180","fam":"HEA","type":"I","h":171,"b":180,"tw":6,"tf":9.5,"r":15,"A":45.3,"Iy":2510,"Iz":925,"Zely":294,"Zelz":103,"Sy":331,"Sz":156,"ry":7.45,"rz":4.52,"J":26,"Iw":2680000,"u":0.848,"x":12.1},{"name":"HEA200","fam":"HEA","type":"I","h":190,"b":200,"tw":6.5,"tf":10,"r":18,"A":53.8,"Iy":3690,"Iz":1340,"Zely":389,"Zelz":134,"Sy":430,"Sz":203,"ry":8.28,"rz":4.98,"J":35.1,"Iw":4750000,"u":0.842,"x":12.6},{"name":"HEA220","fam":"HEA","type":"I","h":210,"b":220,"tw":7,"tf":11,"r":18,"A":64.3,"Iy":5410,"Iz":1950,"Zely":515,"Zelz":177,"Sy":569,"Sz":270,"ry":9.17,"rz":5.51,"J":49.1,"Iw":8330000,"u":0.843,"x":12.9},{"name":"HEA240","fam":"HEA","type":"I","h":230,"b":240,"tw":7.5,"tf":12,"r":21,"A":76.8,"Iy":7760,"Iz":2770,"Zely":675,"Zelz":231,"Sy":745,"Sz":352,"ry":10.1,"rz":6.01,"J":65.3,"Iw":14000000,"u":0.845,"x":13.4},{"name":"HEA260","fam":"HEA","type":"I","h":250,"b":260,"tw":7.5,"tf":12.5,"r":24,"A":86.8,"Iy":10450,"Iz":3670,"Zely":836,"Zelz":282,"Sy":930,"Sz":430,"ry":11,"rz":6.5,"J":73.4,"Iw":20300000,"u":0.852,"x":14.6},{"name":"HEA280","fam":"HEA","type":"I","h":270,"b":280,"tw":8,"tf":13,"r":24,"A":97.3,"Iy":13700,"Iz":4760,"Zely":1010,"Zelz":340,"Sy":1130,"Sz":519,"ry":11.9,"rz":6.99,"J":91.5,"Iw":28700000,"u":0.854,"x":15},{"name":"HEA300","fam":"HEA","type":"I","h":290,"b":300,"tw":8.5,"tf":14,"r":27,"A":113,"Iy":18200,"Iz":6310,"Zely":1260,"Zelz":421,"Sy":1410,"Sz":642,"ry":12.7,"rz":7.49,"J":122,"Iw":42400000,"u":0.855,"x":15},{"name":"HEA320","fam":"HEA","type":"I","h":310,"b":300,"tw":9,"tf":15.5,"r":27,"A":124,"Iy":21400,"Iz":6980,"Zely":1380,"Zelz":465,"Sy":1540,"Sz":711,"ry":13.1,"rz":7.5,"J":151,"Iw":46800000,"u":0.832,"x":15.1},{"name":"HEA340","fam":"HEA","type":"I","h":330,"b":300,"tw":9.5,"tf":16.5,"r":27,"A":133,"Iy":24700,"Iz":7630,"Zely":1500,"Zelz":508,"Sy":1680,"Sz":775,"ry":13.6,"rz":7.57,"J":175,"Iw":51100000,"u":0.818,"x":15.5},{"name":"HEA360","fam":"HEA","type":"I","h":350,"b":300,"tw":10,"tf":17.5,"r":27,"A":143,"Iy":28100,"Iz":8290,"Zely":1610,"Zelz":553,"Sy":1810,"Sz":843,"ry":14,"rz":7.61,"J":202,"Iw":55100000,"u":0.8,"x":15.8},{"name":"HEA400","fam":"HEA","type":"I","h":390,"b":300,"tw":11,"tf":19,"r":27,"A":159,"Iy":35100,"Iz":8560,"Zely":1800,"Zelz":571,"Sy":2030,"Sz":872,"ry":14.9,"rz":7.34,"J":238,"Iw":56600000,"u":0.774,"x":17.2},{"name":"HEA450","fam":"HEA","type":"I","h":440,"b":300,"tw":11.5,"tf":21,"r":27,"A":178,"Iy":46200,"Iz":8330,"Zely":2100,"Zelz":555,"Sy":2400,"Sz":855,"ry":16.1,"rz":6.84,"J":282,"Iw":55000000,"u":0.763,"x":18.8},{"name":"HEA500","fam":"HEA","type":"I","h":490,"b":300,"tw":12,"tf":23,"r":27,"A":198,"Iy":58700,"Iz":8120,"Zely":2400,"Zelz":541,"Sy":2750,"Sz":836,"ry":17.2,"rz":6.4,"J":332,"Iw":53300000,"u":0.743,"x":20.4},{"name":"HEA550","fam":"HEA","type":"I","h":540,"b":300,"tw":12.5,"tf":24.5,"r":27,"A":212,"Iy":72200,"Iz":8590,"Zely":2670,"Zelz":573,"Sy":3060,"Sz":886,"ry":18.5,"rz":6.37,"J":381,"Iw":55500000,"u":0.725,"x":21.8},{"name":"HEA600","fam":"HEA","type":"I","h":590,"b":300,"tw":13,"tf":25,"r":27,"A":226,"Iy":85000,"Iz":8560,"Zely":2880,"Zelz":571,"Sy":3310,"Sz":884,"ry":19.4,"rz":6.15,"J":394,"Iw":54800000,"u":0.701,"x":24.2},{"name":"HEB100","fam":"HEB","type":"I","h":100,"b":100,"tw":6,"tf":10,"r":12,"A":26,"Iy":450,"Iz":167,"Zely":90,"Zelz":33.5,"Sy":104,"Sz":52,"ry":4.16,"rz":2.53,"J":19.2,"Iw":223000,"u":0.84,"x":5.9},{"name":"HEB120","fam":"HEB","type":"I","h":120,"b":120,"tw":6.5,"tf":11,"r":12,"A":34,"Iy":864,"Iz":318,"Zely":144,"Zelz":52.9,"Sy":165,"Sz":81.3,"ry":5.04,"rz":3.06,"J":31,"Iw":519000,"u":0.841,"x":6.5},{"name":"HEB140","fam":"HEB","type":"I","h":140,"b":140,"tw":7,"tf":12,"r":12,"A":43,"Iy":1510,"Iz":550,"Zely":216,"Zelz":78.5,"Sy":245,"Sz":120,"ry":5.93,"rz":3.58,"J":48.3,"Iw":1090000,"u":0.843,"x":6.8},{"name":"HEB160","fam":"HEB","type":"I","h":160,"b":160,"tw":8,"tf":13,"r":15,"A":54.3,"Iy":2490,"Iz":889,"Zely":311,"Zelz":111,"Sy":354,"Sz":170,"ry":6.78,"rz":4.05,"J":72.7,"Iw":2100000,"u":0.843,"x":7.2},{"name":"HEB180","fam":"HEB","type":"I","h":180,"b":180,"tw":8.5,"tf":14,"r":15,"A":65.3,"Iy":3830,"Iz":1360,"Zely":426,"Zelz":151,"Sy":481,"Sz":231,"ry":7.66,"rz":4.57,"J":97.2,"Iw":3840000,"u":0.844,"x":7.7},{"name":"HEB200","fam":"HEB","type":"I","h":200,"b":200,"tw":9,"tf":15,"r":18,"A":78.1,"Iy":5700,"Iz":2000,"Zely":570,"Zelz":200,"Sy":643,"Sz":307,"ry":8.54,"rz":5.06,"J":134,"Iw":6870000,"u":0.847,"x":8},{"name":"HEB220","fam":"HEB","type":"I","h":220,"b":220,"tw":9.5,"tf":16,"r":18,"A":91,"Iy":8090,"Iz":2840,"Zely":736,"Zelz":258,"Sy":828,"Sz":396,"ry":9.43,"rz":5.59,"J":177,"Iw":12000000,"u":0.848,"x":8.3},{"name":"HEB240","fam":"HEB","type":"I","h":240,"b":240,"tw":10,"tf":17,"r":21,"A":106,"Iy":11300,"Iz":3920,"Zely":938,"Zelz":327,"Sy":1050,"Sz":502,"ry":10.3,"rz":6.08,"J":230,"Iw":19700000,"u":0.847,"x":8.6},{"name":"HEB260","fam":"HEB","type":"I","h":260,"b":260,"tw":10,"tf":17.5,"r":24,"A":118,"Iy":14900,"Iz":5130,"Zely":1150,"Zelz":395,"Sy":1290,"Sz":603,"ry":11.2,"rz":6.58,"J":274,"Iw":28200000,"u":0.854,"x":9},{"name":"HEB280","fam":"HEB","type":"I","h":280,"b":280,"tw":10.5,"tf":18,"r":24,"A":131,"Iy":19300,"Iz":6590,"Zely":1380,"Zelz":471,"Sy":1530,"Sz":718,"ry":12.1,"rz":7.09,"J":332,"Iw":39700000,"u":0.851,"x":9.3},{"name":"HEB300","fam":"HEB","type":"I","h":300,"b":300,"tw":11,"tf":19,"r":27,"A":149,"Iy":25200,"Iz":8560,"Zely":1680,"Zelz":571,"Sy":1860,"Sz":870,"ry":13,"rz":7.58,"J":431,"Iw":57300000,"u":0.85,"x":9.4},{"name":"HEB320","fam":"HEB","type":"I","h":320,"b":300,"tw":11.5,"tf":20.5,"r":27,"A":161,"Iy":30800,"Iz":9240,"Zely":1930,"Zelz":616,"Sy":2140,"Sz":938,"ry":13.8,"rz":7.57,"J":555,"Iw":61800000,"u":0.862,"x":9.1},{"name":"HEB340","fam":"HEB","type":"I","h":340,"b":300,"tw":12,"tf":21.5,"r":27,"A":171,"Iy":36700,"Iz":9690,"Zely":2160,"Zelz":646,"Sy":2400,"Sz":985,"ry":14.6,"rz":7.53,"J":623,"Iw":64700000,"u":0.87,"x":9.4},{"name":"HEB360","fam":"HEB","type":"I","h":360,"b":300,"tw":12.5,"tf":22.5,"r":27,"A":181,"Iy":43200,"Iz":10100,"Zely":2400,"Zelz":676,"Sy":2670,"Sz":1030,"ry":15.4,"rz":7.49,"J":703,"Iw":67400000,"u":0.875,"x":9.7},{"name":"HEB400","fam":"HEB","type":"I","h":400,"b":300,"tw":13.5,"tf":24,"r":27,"A":198,"Iy":57700,"Iz":10800,"Zely":2880,"Zelz":721,"Sy":3230,"Sz":1100,"ry":17.1,"rz":7.4,"J":875,"Iw":71500000,"u":0.884,"x":10.1},{"name":"HEB450","fam":"HEB","type":"I","h":450,"b":300,"tw":14,"tf":26,"r":27,"A":218,"Iy":79800,"Iz":11700,"Zely":3550,"Zelz":781,"Sy":3980,"Sz":1190,"ry":19.1,"rz":7.33,"J":1100,"Iw":77600000,"u":0.892,"x":10.7},{"name":"HEB500","fam":"HEB","type":"I","h":500,"b":300,"tw":14.5,"tf":28,"r":27,"A":239,"Iy":107200,"Iz":12600,"Zely":4290,"Zelz":842,"Sy":4810,"Sz":1280,"ry":21.2,"rz":7.27,"J":1360,"Iw":83300000,"u":0.895,"x":11.2},{"name":"HEB550","fam":"HEB","type":"I","h":550,"b":300,"tw":15,"tf":29,"r":27,"A":254,"Iy":136700,"Iz":13100,"Zely":4970,"Zelz":873,"Sy":5590,"Sz":1330,"ry":23.2,"rz":7.19,"J":1540,"Iw":86200000,"u":0.896,"x":12},{"name":"HEB600","fam":"HEB","type":"I","h":600,"b":300,"tw":15.5,"tf":30,"r":27,"A":270,"Iy":171000,"Iz":13700,"Zely":5700,"Zelz":914,"Sy":6420,"Sz":1390,"ry":25.2,"rz":7.13,"J":1750,"Iw":90100000,"u":0.895,"x":12.7},{"name":"CHS48.3x3.2","fam":"CHS","type":"CHS","h":48.3,"b":48.3,"tw":3.2,"tf":3.2,"r":0,"A":4.53,"Iy":11.8,"Iz":11.8,"Zely":4.89,"Zelz":4.89,"Sy":6.46,"Sz":6.46,"ry":1.61,"rz":1.61,"J":23.6,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS60.3x3.2","fam":"CHS","type":"CHS","h":60.3,"b":60.3,"tw":3.2,"tf":3.2,"r":0,"A":5.74,"Iy":23.5,"Iz":23.5,"Zely":7.8,"Zelz":7.8,"Sy":10.3,"Sz":10.3,"ry":2.02,"rz":2.02,"J":47,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS76.1x3.2","fam":"CHS","type":"CHS","h":76.1,"b":76.1,"tw":3.2,"tf":3.2,"r":0,"A":7.33,"Iy":49.3,"Iz":49.3,"Zely":12.9,"Zelz":12.9,"Sy":17.1,"Sz":17.1,"ry":2.59,"rz":2.59,"J":98.6,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS88.9x3.2","fam":"CHS","type":"CHS","h":88.9,"b":88.9,"tw":3.2,"tf":3.2,"r":0,"A":8.62,"Iy":80.8,"Iz":80.8,"Zely":18.2,"Zelz":18.2,"Sy":24,"Sz":24,"ry":3.06,"rz":3.06,"J":162,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS114.3x3.6","fam":"CHS","type":"CHS","h":114.3,"b":114.3,"tw":3.6,"tf":3.6,"r":0,"A":12.5,"Iy":194,"Iz":194,"Zely":34,"Zelz":34,"Sy":44.8,"Sz":44.8,"ry":3.94,"rz":3.94,"J":388,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS139.7x4.0","fam":"CHS","type":"CHS","h":139.7,"b":139.7,"tw":4,"tf":4,"r":0,"A":17.1,"Iy":395,"Iz":395,"Zely":56.6,"Zelz":56.6,"Sy":74.6,"Sz":74.6,"ry":4.8,"rz":4.8,"J":790,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS168.3x4.5","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"tw":4.5,"tf":4.5,"r":0,"A":23.2,"Iy":788,"Iz":788,"Zely":93.6,"Zelz":93.6,"Sy":123,"Sz":123,"ry":5.83,"rz":5.83,"J":1576,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS168.3x6.3","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"tw":6.3,"tf":6.3,"r":0,"A":32.1,"Iy":1070,"Iz":1070,"Zely":127,"Zelz":127,"Sy":167,"Sz":167,"ry":5.77,"rz":5.77,"J":2140,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS219.1x5.0","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"tw":5,"tf":5,"r":0,"A":33.6,"Iy":1930,"Iz":1930,"Zely":176,"Zelz":176,"Sy":232,"Sz":232,"ry":7.57,"rz":7.57,"J":3860,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS219.1x6.3","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"tw":6.3,"tf":6.3,"r":0,"A":42.1,"Iy":2390,"Iz":2390,"Zely":218,"Zelz":218,"Sy":287,"Sz":287,"ry":7.54,"rz":7.54,"J":4780,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS273.0x5.0","fam":"CHS","type":"CHS","h":273,"b":273,"tw":5,"tf":5,"r":0,"A":42.1,"Iy":3800,"Iz":3800,"Zely":278,"Zelz":278,"Sy":366,"Sz":366,"ry":9.5,"rz":9.5,"J":7600,"Iw":0,"u":0.9,"x":1000000},{"name":"CHS273.0x6.3","fam":"CHS","type":"CHS","h":273,"b":273,"tw":6.3,"tf":6.3,"r":0,"A":52.8,"Iy":4720,"Iz":4720,"Zely":346,"Zelz":346,"Sy":455,"Sz":455,"ry":9.46,"rz":9.46,"J":9440,"Iw":0,"u":0.9,"x":1000000},{"name":"SHS50x50x3.0","fam":"SHS","type":"RHS","h":50,"b":50,"tw":3,"tf":3,"r":3,"A":5.34,"Iy":19.6,"Iz":19.6,"Zely":7.84,"Zelz":7.84,"Sy":9.41,"Sz":9.41,"ry":1.92,"rz":1.92,"J":30.7,"Iw":0,"u":0.9,"x":70},{"name":"SHS60x60x3.0","fam":"SHS","type":"RHS","h":60,"b":60,"tw":3,"tf":3,"r":3,"A":6.64,"Iy":36.9,"Iz":36.9,"Zely":12.3,"Zelz":12.3,"Sy":14.7,"Sz":14.7,"ry":2.35,"rz":2.35,"J":58,"Iw":0,"u":0.9,"x":70},{"name":"SHS70x70x3.0","fam":"SHS","type":"RHS","h":70,"b":70,"tw":3,"tf":3,"r":3,"A":7.94,"Iy":60.4,"Iz":60.4,"Zely":17.3,"Zelz":17.3,"Sy":20.6,"Sz":20.6,"ry":2.76,"rz":2.76,"J":94.7,"Iw":0,"u":0.9,"x":70},{"name":"SHS80x80x3.0","fam":"SHS","type":"RHS","h":80,"b":80,"tw":3,"tf":3,"r":3,"A":9.24,"Iy":92.6,"Iz":92.6,"Zely":23.1,"Zelz":23.1,"Sy":27.5,"Sz":27.5,"ry":3.17,"rz":3.17,"J":145,"Iw":0,"u":0.9,"x":70},{"name":"SHS90x90x4.0","fam":"SHS","type":"RHS","h":90,"b":90,"tw":4,"tf":4,"r":4,"A":13.6,"Iy":168,"Iz":168,"Zely":37.3,"Zelz":37.3,"Sy":44.4,"Sz":44.4,"ry":3.51,"rz":3.51,"J":266,"Iw":0,"u":0.9,"x":70},{"name":"SHS100x100x4.0","fam":"SHS","type":"RHS","h":100,"b":100,"tw":4,"tf":4,"r":4,"A":15.3,"Iy":236,"Iz":236,"Zely":47.2,"Zelz":47.2,"Sy":56.1,"Sz":56.1,"ry":3.92,"rz":3.92,"J":374,"Iw":0,"u":0.9,"x":70},{"name":"SHS120x120x5.0","fam":"SHS","type":"RHS","h":120,"b":120,"tw":5,"tf":5,"r":5,"A":22.7,"Iy":516,"Iz":516,"Zely":86,"Zelz":86,"Sy":102,"Sz":102,"ry":4.77,"rz":4.77,"J":811,"Iw":0,"u":0.9,"x":70},{"name":"SHS150x150x5.0","fam":"SHS","type":"RHS","h":150,"b":150,"tw":5,"tf":5,"r":5,"A":28.7,"Iy":1030,"Iz":1030,"Zely":137,"Zelz":137,"Sy":163,"Sz":163,"ry":5.99,"rz":5.99,"J":1610,"Iw":0,"u":0.9,"x":70},{"name":"SHS150x150x6.3","fam":"SHS","type":"RHS","h":150,"b":150,"tw":6.3,"tf":6.3,"r":6.3,"A":35.8,"Iy":1270,"Iz":1270,"Zely":169,"Zelz":169,"Sy":201,"Sz":201,"ry":5.95,"rz":5.95,"J":1980,"Iw":0,"u":0.9,"x":70},{"name":"SHS200x200x6.3","fam":"SHS","type":"RHS","h":200,"b":200,"tw":6.3,"tf":6.3,"r":6.3,"A":48.6,"Iy":3080,"Iz":3080,"Zely":308,"Zelz":308,"Sy":366,"Sz":366,"ry":7.96,"rz":7.96,"J":4790,"Iw":0,"u":0.9,"x":70},{"name":"RHS60x40x3.0","fam":"RHS","type":"RHS","h":60,"b":40,"tw":3,"tf":3,"r":3,"A":5.54,"Iy":27,"Iz":14.1,"Zely":9,"Zelz":7.06,"Sy":10.8,"Sz":8.42,"ry":2.21,"rz":1.6,"J":29.1,"Iw":0,"u":0.9,"x":70},{"name":"RHS80x40x3.0","fam":"RHS","type":"RHS","h":80,"b":40,"tw":3,"tf":3,"r":3,"A":6.64,"Iy":51.1,"Iz":16.9,"Zely":12.8,"Zelz":8.45,"Sy":15.3,"Sz":10.1,"ry":2.77,"rz":1.6,"J":37,"Iw":0,"u":0.9,"x":70},{"name":"RHS90x50x3.0","fam":"RHS","type":"RHS","h":90,"b":50,"tw":3,"tf":3,"r":3,"A":7.94,"Iy":86,"Iz":32.3,"Zely":19.1,"Zelz":12.9,"Sy":22.8,"Sz":15.4,"ry":3.29,"rz":2.02,"J":62.2,"Iw":0,"u":0.9,"x":70},{"name":"RHS100x50x4.0","fam":"RHS","type":"RHS","h":100,"b":50,"tw":4,"tf":4,"r":4,"A":11.3,"Iy":161,"Iz":47.4,"Zely":32.2,"Zelz":19,"Sy":38.4,"Sz":22.6,"ry":3.78,"rz":2.05,"J":103,"Iw":0,"u":0.9,"x":70},{"name":"RHS120x60x5.0","fam":"RHS","type":"RHS","h":120,"b":60,"tw":5,"tf":5,"r":5,"A":16.7,"Iy":348,"Iz":103,"Zely":58,"Zelz":34.3,"Sy":69,"Sz":40.7,"ry":4.56,"rz":2.48,"J":221,"Iw":0,"u":0.9,"x":70},{"name":"RHS150x100x5.0","fam":"RHS","type":"RHS","h":150,"b":100,"tw":5,"tf":5,"r":5,"A":23.7,"Iy":788,"Iz":401,"Zely":105,"Zelz":80.2,"Sy":125,"Sz":95,"ry":5.77,"rz":4.11,"J":679,"Iw":0,"u":0.9,"x":70},{"name":"RHS150x100x6.3","fam":"RHS","type":"RHS","h":150,"b":100,"tw":6.3,"tf":6.3,"r":6.3,"A":29.6,"Iy":969,"Iz":489,"Zely":129,"Zelz":97.8,"Sy":154,"Sz":116,"ry":5.72,"rz":4.06,"J":828,"Iw":0,"u":0.9,"x":70},{"name":"RHS200x100x6.3","fam":"RHS","type":"RHS","h":200,"b":100,"tw":6.3,"tf":6.3,"r":6.3,"A":35.8,"Iy":2030,"Iz":660,"Zely":203,"Zelz":132,"Sy":242,"Sz":157,"ry":7.53,"rz":4.3,"J":1140,"Iw":0,"u":0.9,"x":70},{"name":"RHS200x150x6.3","fam":"RHS","type":"RHS","h":200,"b":150,"tw":6.3,"tf":6.3,"r":6.3,"A":42.2,"Iy":2510,"Iz":1440,"Zely":251,"Zelz":192,"Sy":299,"Sz":228,"ry":7.71,"rz":5.84,"J":2360,"Iw":0,"u":0.9,"x":70},{"name":"EA 50x50x6","fam":"EA","type":"angle","h":50,"b":50,"tw":6,"tf":6,"A":5.64,"Iy":12.9,"Iz":12.9,"Zely":3.6,"Zelz":0,"Sy":0,"Sz":0,"ry":1.515,"rz":0.99,"J":0.68,"Iw":0,"u":0.9,"x":8.333333333333334,"computed":true},{"name":"EA 50x50x5","fam":"EA","type":"angle","h":50,"b":50,"tw":5,"tf":5,"A":4.75,"Iy":10.9,"Iz":10.9,"Zely":3.1,"Zelz":0,"Sy":0,"Sz":0,"ry":1.515,"rz":0.99,"J":0.4,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 60x60x6","fam":"EA","type":"angle","h":60,"b":60,"tw":6,"tf":6,"A":6.84,"Iy":22.6,"Iz":22.6,"Zely":5.3,"Zelz":0,"Sy":0,"Sz":0,"ry":1.818,"rz":1.188,"J":0.82,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 70x70x6","fam":"EA","type":"angle","h":70,"b":70,"tw":6,"tf":6,"A":8.04,"Iy":36.2,"Iz":36.2,"Zely":7.3,"Zelz":0,"Sy":0,"Sz":0,"ry":2.121,"rz":1.386,"J":0.96,"Iw":0,"u":0.9,"x":11.666666666666666,"computed":true},{"name":"EA 75x75x8","fam":"EA","type":"angle","h":75,"b":75,"tw":8,"tf":8,"A":11.36,"Iy":58.6,"Iz":58.6,"Zely":11,"Zelz":0,"Sy":0,"Sz":0,"ry":2.272,"rz":1.485,"J":2.42,"Iw":0,"u":0.9,"x":9.375,"computed":true},{"name":"EA 80x80x8","fam":"EA","type":"angle","h":80,"b":80,"tw":8,"tf":8,"A":12.16,"Iy":71.4,"Iz":71.4,"Zely":12.6,"Zelz":0,"Sy":0,"Sz":0,"ry":2.424,"rz":1.584,"J":2.59,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 90x90x8","fam":"EA","type":"angle","h":90,"b":90,"tw":8,"tf":8,"A":13.76,"Iy":102.3,"Iz":102.3,"Zely":16,"Zelz":0,"Sy":0,"Sz":0,"ry":2.727,"rz":1.782,"J":2.94,"Iw":0,"u":0.9,"x":11.25,"computed":true},{"name":"EA 100x100x8","fam":"EA","type":"angle","h":100,"b":100,"tw":8,"tf":8,"A":15.36,"Iy":141,"Iz":141,"Zely":19.9,"Zelz":0,"Sy":0,"Sz":0,"ry":3.03,"rz":1.98,"J":3.28,"Iw":0,"u":0.9,"x":12.5,"computed":true},{"name":"EA 100x100x10","fam":"EA","type":"angle","h":100,"b":100,"tw":10,"tf":10,"A":19,"Iy":174.4,"Iz":174.4,"Zely":24.6,"Zelz":0,"Sy":0,"Sz":0,"ry":3.03,"rz":1.98,"J":6.33,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 120x120x10","fam":"EA","type":"angle","h":120,"b":120,"tw":10,"tf":10,"A":23,"Iy":304.1,"Iz":304.1,"Zely":35.7,"Zelz":0,"Sy":0,"Sz":0,"ry":3.636,"rz":2.376,"J":7.67,"Iw":0,"u":0.9,"x":12,"computed":true},{"name":"EA 150x150x12","fam":"EA","type":"angle","h":150,"b":150,"tw":12,"tf":12,"A":34.56,"Iy":713.9,"Iz":713.9,"Zely":67,"Zelz":0,"Sy":0,"Sz":0,"ry":4.545,"rz":2.97,"J":16.59,"Iw":0,"u":0.9,"x":12.5,"computed":true}];
+const LIBRARY = [{"name":"UB 178x102x19","fam":"UB","type":"I","h":177.8,"b":101.2,"tw":4.8,"tf":7.9,"r":7.6,"A":24.26,"Iy":1356,"Iz":136.7,"Zely":152.5,"Zelz":27,"Sy":171.3,"Sz":41.6,"ry":7.48,"rz":2.37,"J":3.9,"Iw":9865,"u":0.888,"x":23.9,"computed":true},{"name":"UB 203x133x25","fam":"UB","type":"I","h":203.2,"b":133.2,"tw":5.7,"tf":7.8,"r":7.6,"A":31.97,"Iy":2340,"Iz":307.6,"Zely":230.3,"Zelz":46.2,"Sy":257.7,"Sz":70.9,"ry":8.56,"rz":3.1,"J":5.4,"Iw":29363,"u":0.877,"x":27,"computed":true},{"name":"UB 203x133x30","fam":"UB","type":"I","h":206.8,"b":133.9,"tw":6.4,"tf":9.6,"r":7.6,"A":38.21,"Iy":2896,"Iz":384.6,"Zely":280,"Zelz":57.5,"Sy":314.4,"Sz":88.2,"ry":8.71,"rz":3.17,"J":9.5,"Iw":37395,"u":0.881,"x":22.3,"computed":true},{"name":"UB 254x146x31","fam":"UB","type":"I","h":251.4,"b":146.1,"tw":6,"tf":8.6,"r":7.6,"A":39.68,"Iy":4413,"Iz":447.5,"Zely":351.1,"Zelz":61.3,"Sy":393.1,"Sz":94.1,"ry":10.55,"rz":3.36,"J":7.9,"Iw":65955,"u":0.88,"x":30.8,"computed":true},{"name":"UB 254x146x37","fam":"UB","type":"I","h":256,"b":146.4,"tw":6.3,"tf":10.9,"r":7.6,"A":47.17,"Iy":5537,"Iz":570.6,"Zely":432.6,"Zelz":78,"Sy":483.2,"Sz":119.4,"ry":10.83,"rz":3.48,"J":14.6,"Iw":85701,"u":0.89,"x":24.9,"computed":true},{"name":"UB 305x102x25","fam":"UB","type":"I","h":305.1,"b":101.6,"tw":5.8,"tf":7,"r":7.6,"A":31.6,"Iy":4455,"Iz":122.9,"Zely":292.1,"Zelz":24.2,"Sy":342,"Sz":38.8,"ry":11.87,"rz":1.97,"J":4.2,"Iw":27311,"u":0.846,"x":46.2,"computed":true},{"name":"UB 305x102x28","fam":"UB","type":"I","h":308.7,"b":101.8,"tw":6,"tf":8.8,"r":7.6,"A":35.88,"Iy":5366,"Iz":155.4,"Zely":347.6,"Zelz":30.5,"Sy":402.9,"Sz":48.5,"ry":12.23,"rz":2.08,"J":6.7,"Iw":34933,"u":0.859,"x":39.2,"computed":true},{"name":"UB 305x102x33","fam":"UB","type":"I","h":312.7,"b":102.4,"tw":6.6,"tf":10.8,"r":7.6,"A":41.83,"Iy":6501,"Iz":194.1,"Zely":415.8,"Zelz":37.9,"Sy":480.8,"Sz":60,"ry":12.47,"rz":2.15,"J":11.4,"Iw":44226,"u":0.866,"x":32.7,"computed":true},{"name":"UB 305x127x37","fam":"UB","type":"I","h":304.4,"b":123.3,"tw":7.1,"tf":10.7,"r":8.9,"A":47.16,"Iy":7166,"Iz":335.3,"Zely":470.8,"Zelz":54.4,"Sy":539.1,"Sz":85.3,"ry":12.33,"rz":2.67,"J":13.4,"Iw":72316,"u":0.872,"x":31.1,"computed":true},{"name":"UB 305x165x40","fam":"UB","type":"I","h":303.4,"b":165,"tw":6,"tf":10.2,"r":8.9,"A":51.32,"Iy":8503,"Iz":764.3,"Zely":560.5,"Zelz":92.6,"Sy":623.1,"Sz":141.7,"ry":12.87,"rz":3.86,"J":13.7,"Iw":164269,"u":0.889,"x":32.1,"computed":true},{"name":"UB 305x165x54","fam":"UB","type":"I","h":310.4,"b":166.9,"tw":7.9,"tf":13.7,"r":8.9,"A":68.77,"Iy":11696,"Iz":1062.9,"Zely":753.6,"Zelz":127.4,"Sy":846.1,"Sz":195.6,"ry":13.04,"rz":3.93,"J":33.3,"Iw":233930,"u":0.889,"x":24.1,"computed":true},{"name":"UB 356x127x39","fam":"UB","type":"I","h":353.4,"b":126,"tw":6.6,"tf":10.7,"r":10.2,"A":49.77,"Iy":10172,"Iz":357.8,"Zely":575.6,"Zelz":56.8,"Sy":658.5,"Sz":89.1,"ry":14.3,"rz":2.68,"J":13.5,"Iw":105055,"u":0.871,"x":37.3,"computed":true},{"name":"UB 356x171x45","fam":"UB","type":"I","h":351.4,"b":171.1,"tw":7,"tf":9.7,"r":10.2,"A":57.33,"Iy":12066,"Iz":811,"Zely":686.7,"Zelz":94.8,"Sy":774.6,"Sz":146.6,"ry":14.51,"rz":3.76,"J":14.2,"Iw":236738,"u":0.874,"x":38.9,"computed":true},{"name":"UB 356x171x51","fam":"UB","type":"I","h":355,"b":171.5,"tw":7.4,"tf":11.5,"r":10.2,"A":64.91,"Iy":14136,"Iz":968.2,"Zely":796.4,"Zelz":112.9,"Sy":896,"Sz":174.2,"ry":14.76,"rz":3.86,"J":21.9,"Iw":285614,"u":0.881,"x":33.5,"computed":true},{"name":"UB 356x171x67","fam":"UB","type":"I","h":363.4,"b":173.2,"tw":9.1,"tf":15.7,"r":10.2,"A":85.49,"Iy":19463,"Iz":1362,"Zely":1071.2,"Zelz":157.3,"Sy":1210.9,"Sz":243,"ry":15.09,"rz":3.99,"J":53,"Iw":411661,"u":0.886,"x":25,"computed":true},{"name":"UB 406x178x54","fam":"UB","type":"I","h":402.6,"b":177.7,"tw":7.7,"tf":10.9,"r":10.2,"A":68.95,"Iy":18722,"Iz":1021.2,"Zely":930.1,"Zelz":114.9,"Sy":1054.6,"Sz":178.3,"ry":16.48,"rz":3.85,"J":21.1,"Iw":391691,"u":0.871,"x":40,"computed":true},{"name":"UB 406x178x60","fam":"UB","type":"I","h":406.4,"b":177.9,"tw":7.9,"tf":12.8,"r":10.2,"A":76.52,"Iy":21596,"Iz":1203,"Zely":1062.8,"Zelz":135.2,"Sy":1199.5,"Sz":209,"ry":16.8,"rz":3.97,"J":31.1,"Iw":465937,"u":0.88,"x":34.9,"computed":true},{"name":"UB 406x178x74","fam":"UB","type":"I","h":412.8,"b":179.5,"tw":9.5,"tf":16,"r":10.2,"A":94.51,"Iy":27310,"Iz":1545.4,"Zely":1323.1,"Zelz":172.2,"Sy":1500.8,"Sz":267,"ry":17,"rz":4.04,"J":59.9,"Iw":608324,"u":0.882,"x":28.2,"computed":true},{"name":"UB 457x152x52","fam":"UB","type":"I","h":449.8,"b":152.4,"tw":7.6,"tf":10.9,"r":10.2,"A":66.64,"Iy":21369,"Iz":644.9,"Zely":950.1,"Zelz":84.6,"Sy":1096,"Sz":133.3,"ry":17.91,"rz":3.11,"J":19.4,"Iw":310584,"u":0.859,"x":46,"computed":true},{"name":"UB 457x152x60","fam":"UB","type":"I","h":454.6,"b":152.9,"tw":8.1,"tf":13.3,"r":10.2,"A":76.23,"Iy":25500,"Iz":794.6,"Zely":1121.9,"Zelz":103.9,"Sy":1287.3,"Sz":163.1,"ry":18.29,"rz":3.23,"J":31.6,"Iw":386869,"u":0.868,"x":38.8,"computed":true},{"name":"UB 457x191x67","fam":"UB","type":"I","h":453.4,"b":189.9,"tw":8.5,"tf":12.7,"r":10.2,"A":85.51,"Iy":29380,"Iz":1452.1,"Zely":1296,"Zelz":152.9,"Sy":1471,"Sz":237.3,"ry":18.54,"rz":4.12,"J":34.7,"Iw":705055,"u":0.872,"x":39.2,"computed":true},{"name":"UB 457x191x74","fam":"UB","type":"I","h":457,"b":190.4,"tw":9,"tf":14.5,"r":10.2,"A":94.63,"Iy":33319,"Iz":1671.1,"Zely":1458.2,"Zelz":175.5,"Sy":1652.7,"Sz":272.1,"ry":18.76,"rz":4.2,"J":49.1,"Iw":818026,"u":0.877,"x":34.8,"computed":true},{"name":"UB 457x191x82","fam":"UB","type":"I","h":460,"b":191.3,"tw":9.9,"tf":16,"r":10.2,"A":104.48,"Iy":37051,"Iz":1870.8,"Zely":1610.9,"Zelz":195.6,"Sy":1831.3,"Sz":303.9,"ry":18.83,"rz":4.23,"J":66.1,"Iw":922003,"u":0.877,"x":31.6,"computed":true},{"name":"UB 533x210x82","fam":"UB","type":"I","h":528.3,"b":208.8,"tw":9.6,"tf":13.2,"r":12.7,"A":104.69,"Iy":47539,"Iz":2007.2,"Zely":1799.7,"Zelz":192.3,"Sy":2058.6,"Sz":300.4,"ry":21.31,"rz":4.38,"J":46.8,"Iw":1331416,"u":0.864,"x":43.6,"computed":true},{"name":"UB 533x210x92","fam":"UB","type":"I","h":533.1,"b":209.3,"tw":10.1,"tf":15.6,"r":12.7,"A":117.38,"Iy":55227,"Iz":2389,"Zely":2071.9,"Zelz":228.3,"Sy":2360.1,"Sz":355.6,"ry":21.69,"rz":4.51,"J":70.2,"Iw":1599494,"u":0.872,"x":37.9,"computed":true},{"name":"UB 533x210x101","fam":"UB","type":"I","h":536.7,"b":210,"tw":10.8,"tf":17.4,"r":12.7,"A":128.67,"Iy":61519,"Iz":2691.9,"Zely":2292.5,"Zelz":256.4,"Sy":2612,"Sz":399.4,"ry":21.87,"rz":4.57,"J":94.8,"Iw":1814827,"u":0.874,"x":34.2,"computed":true},{"name":"UB 610x229x113","fam":"UB","type":"I","h":607.6,"b":228.2,"tw":11.1,"tf":17.3,"r":12.7,"A":143.94,"Iy":87318,"Iz":3433.9,"Zely":2874.2,"Zelz":301,"Sy":3280.8,"Sz":469.3,"ry":24.63,"rz":4.88,"J":104.9,"Iw":2991421,"u":0.87,"x":39.1,"computed":true},{"name":"UB 610x229x140","fam":"UB","type":"I","h":617.2,"b":230.2,"tw":13.1,"tf":22.1,"r":12.7,"A":178.2,"Iy":111777,"Iz":4505.2,"Zely":3622.1,"Zelz":391.4,"Sy":4142.1,"Sz":611.4,"ry":25.05,"rz":5.03,"J":208.6,"Iw":3988695,"u":0.875,"x":31.1,"computed":true},{"name":"UB 686x254x152","fam":"UB","type":"I","h":687.5,"b":254.5,"tw":13.2,"tf":21,"r":15.2,"A":194.08,"Iy":150355,"Iz":5783.8,"Zely":4374,"Zelz":454.5,"Sy":5000.5,"Sz":710.2,"ry":27.83,"rz":5.46,"J":206.6,"Iw":6423191,"u":0.871,"x":36.6,"computed":true},{"name":"UB 762x267x173","fam":"UB","type":"I","h":762.2,"b":266.7,"tw":14.3,"tf":21.6,"r":16.5,"A":220.37,"Iy":205282,"Iz":6849.5,"Zely":5386.6,"Zelz":513.6,"Sy":6197.7,"Sz":807.5,"ry":30.52,"rz":5.58,"J":249.3,"Iw":9392167,"u":0.864,"x":39.4,"computed":true},{"name":"UB 914x305x201","fam":"UB","type":"I","h":903,"b":303.3,"tw":15.1,"tf":20.2,"r":19.1,"A":255.92,"Iy":325254,"Iz":9422.4,"Zely":7203.8,"Zelz":621.3,"Sy":8351.2,"Sz":982,"ry":35.65,"rz":6.07,"J":265.7,"Iw":18358042,"u":0.854,"x":49,"computed":true},{"name":"UC 152x152x23","fam":"UC","type":"I","h":152.4,"b":152.2,"tw":5.8,"tf":6.8,"r":7.6,"A":29.25,"Iy":1250,"Iz":399.9,"Zely":164,"Zelz":52.6,"Sy":182,"Sz":80.2,"ry":6.54,"rz":3.7,"J":4.1,"Iw":21195,"u":0.84,"x":22,"computed":true},{"name":"UC 152x152x30","fam":"UC","type":"I","h":157.6,"b":152.9,"tw":6.5,"tf":9.4,"r":7.6,"A":38.26,"Iy":1748,"Iz":560.5,"Zely":221.8,"Zelz":73.3,"Sy":247.7,"Sz":111.6,"ry":6.76,"rz":3.83,"J":9.7,"Iw":30773,"u":0.849,"x":16.6,"computed":true},{"name":"UC 152x152x37","fam":"UC","type":"I","h":161.8,"b":154.4,"tw":8,"tf":11.5,"r":7.6,"A":47.11,"Iy":2210,"Iz":706.2,"Zely":273.2,"Zelz":91.5,"Sy":308.8,"Sz":139.6,"ry":6.85,"rz":3.87,"J":18,"Iw":39885,"u":0.848,"x":13.8,"computed":true},{"name":"UC 203x203x46","fam":"UC","type":"I","h":203.2,"b":203.6,"tw":7.2,"tf":11,"r":10.2,"A":58.73,"Iy":4568,"Iz":1548.2,"Zely":449.6,"Zelz":152.1,"Sy":497.4,"Sz":230.9,"ry":8.82,"rz":5.13,"J":20.3,"Iw":142977,"u":0.847,"x":18.5,"computed":true},{"name":"UC 203x203x60","fam":"UC","type":"I","h":209.6,"b":205.8,"tw":9.4,"tf":14.2,"r":10.2,"A":76.37,"Iy":6124,"Iz":2064.6,"Zely":584.4,"Zelz":200.6,"Sy":656.1,"Sz":305.3,"ry":8.95,"rz":5.2,"J":44.3,"Iw":197069,"u":0.846,"x":14.5,"computed":true},{"name":"UC 203x203x71","fam":"UC","type":"I","h":215.8,"b":206.4,"tw":10,"tf":17.3,"r":10.2,"A":90.43,"Iy":7618,"Iz":2537.3,"Zely":706,"Zelz":245.9,"Sy":798.8,"Sz":373.7,"ry":9.18,"rz":5.3,"J":77.3,"Iw":249934,"u":0.853,"x":12.2,"computed":true},{"name":"UC 254x254x73","fam":"UC","type":"I","h":254.1,"b":254.6,"tw":8.6,"tf":14.2,"r":12.7,"A":93.1,"Iy":11407,"Iz":3907.7,"Zely":897.8,"Zelz":307,"Sy":992.1,"Sz":465.4,"ry":11.07,"rz":6.48,"J":53.4,"Iw":562243,"u":0.849,"x":17.9,"computed":true},{"name":"UC 254x254x89","fam":"UC","type":"I","h":260.3,"b":256.3,"tw":10.3,"tf":17.3,"r":12.7,"A":113.31,"Iy":14268,"Iz":4857.4,"Zely":1096.2,"Zelz":379,"Sy":1223.9,"Sz":575.3,"ry":11.22,"rz":6.55,"J":96.7,"Iw":717061,"u":0.85,"x":14.9,"computed":true},{"name":"UC 254x254x107","fam":"UC","type":"I","h":266.7,"b":258.8,"tw":12.8,"tf":20.5,"r":12.7,"A":136.38,"Iy":17510,"Iz":5927.5,"Zely":1313.1,"Zelz":458.1,"Sy":1484.4,"Sz":697,"ry":11.33,"rz":6.59,"J":164.4,"Iw":898229,"u":0.848,"x":12.7,"computed":true},{"name":"UC 305x305x97","fam":"UC","type":"I","h":307.9,"b":305.3,"tw":9.9,"tf":15.4,"r":15.2,"A":123.45,"Iy":22249,"Iz":7307.4,"Zely":1445.2,"Zelz":478.7,"Sy":1592.1,"Sz":726.1,"ry":13.42,"rz":7.69,"J":83.3,"Iw":1562993,"u":0.85,"x":20.2,"computed":true},{"name":"UC 305x305x118","fam":"UC","type":"I","h":314.5,"b":307.4,"tw":12,"tf":18.7,"r":15.2,"A":150.2,"Iy":27672,"Iz":9058.9,"Zely":1759.7,"Zelz":589.4,"Sy":1957.5,"Sz":895.4,"ry":13.57,"rz":7.77,"J":150,"Iw":1981589,"u":0.85,"x":16.8,"computed":true},{"name":"UC 305x305x137","fam":"UC","type":"I","h":320.5,"b":309.2,"tw":13.8,"tf":21.7,"r":15.2,"A":174.42,"Iy":32814,"Iz":10699.4,"Zely":2047.7,"Zelz":692.1,"Sy":2296.6,"Sz":1052.5,"ry":13.72,"rz":7.83,"J":234.9,"Iw":2388141,"u":0.851,"x":14.6,"computed":true},{"name":"UC 356x368x129","fam":"UC","type":"I","h":355.6,"b":368.6,"tw":10.4,"tf":17.5,"r":15.2,"A":164.34,"Iy":40245,"Iz":14611.2,"Zely":2263.5,"Zelz":792.8,"Sy":2479.3,"Sz":1199.2,"ry":15.65,"rz":9.43,"J":143.7,"Iw":4175573,"u":0.844,"x":20.5,"computed":true},{"name":"UC 356x368x177","fam":"UC","type":"I","h":368.2,"b":372.6,"tw":14.4,"tf":23.8,"r":15.2,"A":225.51,"Iy":57118,"Iz":20529.1,"Zely":3102.5,"Zelz":1101.9,"Sy":3455.2,"Sz":1670.8,"ry":15.91,"rz":9.54,"J":366.8,"Iw":6087465,"u":0.844,"x":15.3,"computed":true},{"name":"PFC 100x50x10","fam":"PFC","type":"channel","h":100,"b":50,"tw":5,"tf":8.5,"r":9,"A":10,"Iy":167,"Iz":26,"Zely":33.3,"Zelz":6.9,"Sy":37.5,"Sz":8.3,"ry":4.08,"rz":1.61,"J":0.8,"Iw":0,"u":0.9,"x":11.8,"computed":true},{"name":"PFC 125x65x15","fam":"PFC","type":"channel","h":125,"b":65,"tw":5.5,"tf":9.5,"r":12,"A":14.03,"Iy":369,"Iz":62.2,"Zely":59,"Zelz":12.8,"Sy":66.2,"Sz":15.4,"ry":5.13,"rz":2.11,"J":1.4,"Iw":0,"u":0.9,"x":13.2,"computed":true},{"name":"PFC 150x75x18","fam":"PFC","type":"channel","h":150,"b":75,"tw":5.5,"tf":10,"r":12,"A":16.5,"Iy":619,"Iz":96.7,"Zely":82.5,"Zelz":17.2,"Sy":92.8,"Sz":20.6,"ry":6.12,"rz":2.42,"J":1.7,"Iw":0,"u":0.9,"x":15,"computed":true},{"name":"PFC 150x90x24","fam":"PFC","type":"channel","h":150,"b":90,"tw":6.5,"tf":12,"r":12,"A":21.45,"Iy":841,"Iz":186.7,"Zely":112.1,"Zelz":28.5,"Sy":124.3,"Sz":34.2,"ry":6.26,"rz":2.95,"J":3,"Iw":0,"u":0.9,"x":12.5,"computed":true},{"name":"PFC 180x90x26","fam":"PFC","type":"channel","h":180,"b":90,"tw":6.5,"tf":12.5,"r":12,"A":23.4,"Iy":1264,"Iz":197.4,"Zely":140.4,"Zelz":29.3,"Sy":157.9,"Sz":35.1,"ry":7.35,"rz":2.9,"J":3.3,"Iw":0,"u":0.9,"x":14.4,"computed":true},{"name":"PFC 200x75x23","fam":"PFC","type":"channel","h":200,"b":75,"tw":6,"tf":12.5,"r":12,"A":21,"Iy":1300,"Iz":114.5,"Zely":130,"Zelz":19.4,"Sy":150,"Sz":23.3,"ry":7.87,"rz":2.34,"J":2.5,"Iw":0,"u":0.9,"x":16,"computed":true},{"name":"PFC 200x90x30","fam":"PFC","type":"channel","h":200,"b":90,"tw":7,"tf":14,"r":12,"A":26.6,"Iy":1727,"Iz":219.3,"Zely":172.7,"Zelz":31.9,"Sy":196,"Sz":38.3,"ry":8.06,"rz":2.87,"J":4.3,"Iw":0,"u":0.9,"x":14.3,"computed":true},{"name":"PFC 230x90x32","fam":"PFC","type":"channel","h":230,"b":90,"tw":7.5,"tf":14,"r":12,"A":30.75,"Iy":2546,"Iz":244.5,"Zely":221.4,"Zelz":34.8,"Sy":254.4,"Sz":41.8,"ry":9.1,"rz":2.82,"J":5.8,"Iw":0,"u":0.9,"x":16.4,"computed":true},{"name":"PFC 260x90x35","fam":"PFC","type":"channel","h":260,"b":90,"tw":8,"tf":14,"r":12,"A":35.2,"Iy":3605,"Iz":269.5,"Zely":277.3,"Zelz":37.6,"Sy":322.4,"Sz":45.2,"ry":10.12,"rz":2.77,"J":7.5,"Iw":0,"u":0.9,"x":18.6,"computed":true},{"name":"PFC 300x90x41","fam":"PFC","type":"channel","h":300,"b":90,"tw":9,"tf":15.5,"r":12,"A":43.2,"Iy":5670,"Iz":314.4,"Zely":378,"Zelz":43,"Sy":445.5,"Sz":51.6,"ry":11.46,"rz":2.7,"J":11.7,"Iw":0,"u":0.9,"x":19.4,"computed":true},{"name":"PFC 300x100x46","fam":"PFC","type":"channel","h":300,"b":100,"tw":9,"tf":16.5,"r":15,"A":45,"Iy":6075,"Iz":420,"Zely":405,"Zelz":52.5,"Sy":472.5,"Sz":63,"ry":11.62,"rz":3.06,"J":12.2,"Iw":0,"u":0.9,"x":18.2,"computed":true},{"name":"IPE80","fam":"IPE","type":"I","h":80,"b":46,"tw":3.8,"tf":5.2,"r":5,"A":7.64,"Iy":80.1,"Iz":8.49,"Zely":20,"Zelz":3.69,"Sy":23.3,"Sz":5.82,"ry":3.24,"rz":1.05,"J":0.7,"Iw":4260,"u":0.878,"x":14},{"name":"IPE100","fam":"IPE","type":"I","h":100,"b":55,"tw":4.1,"tf":5.7,"r":7,"A":10.3,"Iy":171,"Iz":15.9,"Zely":34.2,"Zelz":5.79,"Sy":39.4,"Sz":9.15,"ry":4.07,"rz":1.24,"J":1.21,"Iw":12200,"u":0.879,"x":15.6},{"name":"IPE120","fam":"IPE","type":"I","h":120,"b":64,"tw":4.4,"tf":6.3,"r":7,"A":13.2,"Iy":318,"Iz":27.7,"Zely":53,"Zelz":8.65,"Sy":60.8,"Sz":13.6,"ry":4.9,"rz":1.45,"J":1.74,"Iw":29400,"u":0.88,"x":17.7},{"name":"IPE140","fam":"IPE","type":"I","h":140,"b":73,"tw":4.7,"tf":6.9,"r":7,"A":16.4,"Iy":541,"Iz":44.9,"Zely":77.3,"Zelz":12.3,"Sy":88.4,"Sz":19.2,"ry":5.74,"rz":1.65,"J":2.44,"Iw":62400,"u":0.881,"x":19.5},{"name":"IPE160","fam":"IPE","type":"I","h":160,"b":82,"tw":5,"tf":7.4,"r":9,"A":20.1,"Iy":869,"Iz":68.3,"Zely":109,"Zelz":16.7,"Sy":124,"Sz":26.1,"ry":6.58,"rz":1.84,"J":3.6,"Iw":122000,"u":0.881,"x":20.4},{"name":"IPE180","fam":"IPE","type":"I","h":180,"b":91,"tw":5.3,"tf":8,"r":9,"A":23.9,"Iy":1320,"Iz":101,"Zely":146,"Zelz":22.2,"Sy":166,"Sz":34.6,"ry":7.42,"rz":2.05,"J":4.79,"Iw":225000,"u":0.881,"x":21.7},{"name":"IPE200","fam":"IPE","type":"I","h":200,"b":100,"tw":5.6,"tf":8.5,"r":12,"A":28.5,"Iy":1940,"Iz":142,"Zely":194,"Zelz":28.5,"Sy":221,"Sz":44.6,"ry":8.26,"rz":2.24,"J":6.29,"Iw":395000,"u":0.883,"x":23.1},{"name":"IPE220","fam":"IPE","type":"I","h":220,"b":110,"tw":5.9,"tf":9.2,"r":12,"A":33.4,"Iy":2770,"Iz":205,"Zely":252,"Zelz":37.3,"Sy":285,"Sz":58.1,"ry":9.11,"rz":2.48,"J":8.19,"Iw":677000,"u":0.883,"x":24.1},{"name":"IPE240","fam":"IPE","type":"I","h":240,"b":120,"tw":6.2,"tf":9.8,"r":15,"A":39.1,"Iy":3890,"Iz":284,"Zely":324,"Zelz":47.3,"Sy":367,"Sz":73.9,"ry":9.97,"rz":2.69,"J":10.6,"Iw":1120000,"u":0.886,"x":25},{"name":"IPE270","fam":"IPE","type":"I","h":270,"b":135,"tw":6.6,"tf":10.2,"r":15,"A":45.9,"Iy":5790,"Iz":420,"Zely":429,"Zelz":62.2,"Sy":484,"Sz":97.4,"ry":11.2,"rz":3.02,"J":15.3,"Iw":2080000,"u":0.884,"x":25.5},{"name":"IPE300","fam":"IPE","type":"I","h":300,"b":150,"tw":7.1,"tf":10.7,"r":15,"A":53.8,"Iy":8360,"Iz":604,"Zely":557,"Zelz":80.5,"Sy":628,"Sz":126,"ry":12.5,"rz":3.35,"J":20.2,"Iw":3560000,"u":0.882,"x":26.7},{"name":"IPE330","fam":"IPE","type":"I","h":330,"b":160,"tw":7.5,"tf":11.5,"r":18,"A":62.6,"Iy":11800,"Iz":788,"Zely":713,"Zelz":98.5,"Sy":804,"Sz":154,"ry":13.7,"rz":3.55,"J":28.3,"Iw":5540000,"u":0.883,"x":26.8},{"name":"IPE360","fam":"IPE","type":"I","h":360,"b":170,"tw":8,"tf":12.7,"r":18,"A":72.7,"Iy":16300,"Iz":1040,"Zely":904,"Zelz":122,"Sy":1010,"Sz":191,"ry":15,"rz":3.79,"J":37.9,"Iw":8420000,"u":0.88,"x":27.2},{"name":"IPE400","fam":"IPE","type":"I","h":400,"b":180,"tw":8.6,"tf":13.5,"r":21,"A":84.5,"Iy":23200,"Iz":1320,"Zely":1160,"Zelz":146,"Sy":1300,"Sz":229,"ry":16.6,"rz":3.95,"J":51.1,"Iw":13100000,"u":0.879,"x":28.1},{"name":"IPE450","fam":"IPE","type":"I","h":450,"b":190,"tw":9.4,"tf":14.6,"r":21,"A":98.8,"Iy":33700,"Iz":1680,"Zely":1500,"Zelz":176,"Sy":1700,"Sz":276,"ry":18.5,"rz":4.12,"J":66.3,"Iw":20400000,"u":0.878,"x":30.1},{"name":"IPE500","fam":"IPE","type":"I","h":500,"b":200,"tw":10.2,"tf":16,"r":21,"A":116,"Iy":48200,"Iz":2140,"Zely":1930,"Zelz":214,"Sy":2190,"Sz":336,"ry":20.4,"rz":4.31,"J":91.9,"Iw":33100000,"u":0.873,"x":30.8},{"name":"IPE550","fam":"IPE","type":"I","h":550,"b":210,"tw":11.1,"tf":17.2,"r":24,"A":134,"Iy":67100,"Iz":2670,"Zely":2440,"Zelz":254,"Sy":2780,"Sz":400,"ry":22.3,"rz":4.45,"J":123,"Iw":49800000,"u":0.874,"x":31.5},{"name":"IPE600","fam":"IPE","type":"I","h":600,"b":220,"tw":12,"tf":19,"r":24,"A":156,"Iy":92100,"Iz":3390,"Zely":3070,"Zelz":308,"Sy":3510,"Sz":485,"ry":24.3,"rz":4.66,"J":165,"Iw":72700000,"u":0.872,"x":32},{"name":"HEA100","fam":"HEA","type":"I","h":96,"b":100,"tw":5,"tf":8,"r":12,"A":21.2,"Iy":349,"Iz":134,"Zely":72.8,"Zelz":26.8,"Sy":83,"Sz":41.2,"ry":4.06,"rz":2.51,"J":10.3,"Iw":173000,"u":0.836,"x":7.1},{"name":"HEA120","fam":"HEA","type":"I","h":114,"b":120,"tw":5,"tf":8,"r":12,"A":25.3,"Iy":606,"Iz":231,"Zely":106,"Zelz":38.5,"Sy":119,"Sz":58.8,"ry":4.89,"rz":3.02,"J":11.9,"Iw":374000,"u":0.836,"x":8.7},{"name":"HEA140","fam":"HEA","type":"I","h":133,"b":140,"tw":5.5,"tf":8.5,"r":12,"A":31.4,"Iy":1030,"Iz":389,"Zely":155,"Zelz":55.6,"Sy":173,"Sz":84.8,"ry":5.73,"rz":3.52,"J":16.1,"Iw":771000,"u":0.836,"x":9.8},{"name":"HEA160","fam":"HEA","type":"I","h":152,"b":160,"tw":6,"tf":9,"r":15,"A":38.8,"Iy":1670,"Iz":616,"Zely":220,"Zelz":77,"Sy":245,"Sz":117,"ry":6.57,"rz":3.98,"J":22,"Iw":1490000,"u":0.838,"x":10.7},{"name":"HEA180","fam":"HEA","type":"I","h":171,"b":180,"tw":6,"tf":9.5,"r":15,"A":45.3,"Iy":2510,"Iz":925,"Zely":294,"Zelz":103,"Sy":331,"Sz":156,"ry":7.45,"rz":4.52,"J":26,"Iw":2680000,"u":0.848,"x":12.1},{"name":"HEA200","fam":"HEA","type":"I","h":190,"b":200,"tw":6.5,"tf":10,"r":18,"A":53.8,"Iy":3690,"Iz":1340,"Zely":389,"Zelz":134,"Sy":430,"Sz":203,"ry":8.28,"rz":4.98,"J":35.1,"Iw":4750000,"u":0.842,"x":12.6},{"name":"HEA220","fam":"HEA","type":"I","h":210,"b":220,"tw":7,"tf":11,"r":18,"A":64.3,"Iy":5410,"Iz":1950,"Zely":515,"Zelz":177,"Sy":569,"Sz":270,"ry":9.17,"rz":5.51,"J":49.1,"Iw":8330000,"u":0.843,"x":12.9},{"name":"HEA240","fam":"HEA","type":"I","h":230,"b":240,"tw":7.5,"tf":12,"r":21,"A":76.8,"Iy":7760,"Iz":2770,"Zely":675,"Zelz":231,"Sy":745,"Sz":352,"ry":10.1,"rz":6.01,"J":65.3,"Iw":14000000,"u":0.845,"x":13.4},{"name":"HEA260","fam":"HEA","type":"I","h":250,"b":260,"tw":7.5,"tf":12.5,"r":24,"A":86.8,"Iy":10450,"Iz":3670,"Zely":836,"Zelz":282,"Sy":930,"Sz":430,"ry":11,"rz":6.5,"J":73.4,"Iw":20300000,"u":0.852,"x":14.6},{"name":"HEA280","fam":"HEA","type":"I","h":270,"b":280,"tw":8,"tf":13,"r":24,"A":97.3,"Iy":13700,"Iz":4760,"Zely":1010,"Zelz":340,"Sy":1130,"Sz":519,"ry":11.9,"rz":6.99,"J":91.5,"Iw":28700000,"u":0.854,"x":15},{"name":"HEA300","fam":"HEA","type":"I","h":290,"b":300,"tw":8.5,"tf":14,"r":27,"A":113,"Iy":18200,"Iz":6310,"Zely":1260,"Zelz":421,"Sy":1410,"Sz":642,"ry":12.7,"rz":7.49,"J":122,"Iw":42400000,"u":0.855,"x":15},{"name":"HEA320","fam":"HEA","type":"I","h":310,"b":300,"tw":9,"tf":15.5,"r":27,"A":124,"Iy":21400,"Iz":6980,"Zely":1380,"Zelz":465,"Sy":1540,"Sz":711,"ry":13.1,"rz":7.5,"J":151,"Iw":46800000,"u":0.832,"x":15.1},{"name":"HEA340","fam":"HEA","type":"I","h":330,"b":300,"tw":9.5,"tf":16.5,"r":27,"A":133,"Iy":24700,"Iz":7630,"Zely":1500,"Zelz":508,"Sy":1680,"Sz":775,"ry":13.6,"rz":7.57,"J":175,"Iw":51100000,"u":0.818,"x":15.5},{"name":"HEA360","fam":"HEA","type":"I","h":350,"b":300,"tw":10,"tf":17.5,"r":27,"A":143,"Iy":28100,"Iz":8290,"Zely":1610,"Zelz":553,"Sy":1810,"Sz":843,"ry":14,"rz":7.61,"J":202,"Iw":55100000,"u":0.8,"x":15.8},{"name":"HEA400","fam":"HEA","type":"I","h":390,"b":300,"tw":11,"tf":19,"r":27,"A":159,"Iy":35100,"Iz":8560,"Zely":1800,"Zelz":571,"Sy":2030,"Sz":872,"ry":14.9,"rz":7.34,"J":238,"Iw":56600000,"u":0.774,"x":17.2},{"name":"HEA450","fam":"HEA","type":"I","h":440,"b":300,"tw":11.5,"tf":21,"r":27,"A":178,"Iy":46200,"Iz":8330,"Zely":2100,"Zelz":555,"Sy":2400,"Sz":855,"ry":16.1,"rz":6.84,"J":282,"Iw":55000000,"u":0.763,"x":18.8},{"name":"HEA500","fam":"HEA","type":"I","h":490,"b":300,"tw":12,"tf":23,"r":27,"A":198,"Iy":58700,"Iz":8120,"Zely":2400,"Zelz":541,"Sy":2750,"Sz":836,"ry":17.2,"rz":6.4,"J":332,"Iw":53300000,"u":0.743,"x":20.4},{"name":"HEA550","fam":"HEA","type":"I","h":540,"b":300,"tw":12.5,"tf":24.5,"r":27,"A":212,"Iy":72200,"Iz":8590,"Zely":2670,"Zelz":573,"Sy":3060,"Sz":886,"ry":18.5,"rz":6.37,"J":381,"Iw":55500000,"u":0.725,"x":21.8},{"name":"HEA600","fam":"HEA","type":"I","h":590,"b":300,"tw":13,"tf":25,"r":27,"A":226,"Iy":85000,"Iz":8560,"Zely":2880,"Zelz":571,"Sy":3310,"Sz":884,"ry":19.4,"rz":6.15,"J":394,"Iw":54800000,"u":0.701,"x":24.2},{"name":"HEB100","fam":"HEB","type":"I","h":100,"b":100,"tw":6,"tf":10,"r":12,"A":26,"Iy":450,"Iz":167,"Zely":90,"Zelz":33.5,"Sy":104,"Sz":52,"ry":4.16,"rz":2.53,"J":19.2,"Iw":223000,"u":0.84,"x":5.9},{"name":"HEB120","fam":"HEB","type":"I","h":120,"b":120,"tw":6.5,"tf":11,"r":12,"A":34,"Iy":864,"Iz":318,"Zely":144,"Zelz":52.9,"Sy":165,"Sz":81.3,"ry":5.04,"rz":3.06,"J":31,"Iw":519000,"u":0.841,"x":6.5},{"name":"HEB140","fam":"HEB","type":"I","h":140,"b":140,"tw":7,"tf":12,"r":12,"A":43,"Iy":1510,"Iz":550,"Zely":216,"Zelz":78.5,"Sy":245,"Sz":120,"ry":5.93,"rz":3.58,"J":48.3,"Iw":1090000,"u":0.843,"x":6.8},{"name":"HEB160","fam":"HEB","type":"I","h":160,"b":160,"tw":8,"tf":13,"r":15,"A":54.3,"Iy":2490,"Iz":889,"Zely":311,"Zelz":111,"Sy":354,"Sz":170,"ry":6.78,"rz":4.05,"J":72.7,"Iw":2100000,"u":0.843,"x":7.2},{"name":"HEB180","fam":"HEB","type":"I","h":180,"b":180,"tw":8.5,"tf":14,"r":15,"A":65.3,"Iy":3830,"Iz":1360,"Zely":426,"Zelz":151,"Sy":481,"Sz":231,"ry":7.66,"rz":4.57,"J":97.2,"Iw":3840000,"u":0.844,"x":7.7},{"name":"HEB200","fam":"HEB","type":"I","h":200,"b":200,"tw":9,"tf":15,"r":18,"A":78.1,"Iy":5700,"Iz":2000,"Zely":570,"Zelz":200,"Sy":643,"Sz":307,"ry":8.54,"rz":5.06,"J":134,"Iw":6870000,"u":0.847,"x":8},{"name":"HEB220","fam":"HEB","type":"I","h":220,"b":220,"tw":9.5,"tf":16,"r":18,"A":91,"Iy":8090,"Iz":2840,"Zely":736,"Zelz":258,"Sy":828,"Sz":396,"ry":9.43,"rz":5.59,"J":177,"Iw":12000000,"u":0.848,"x":8.3},{"name":"HEB240","fam":"HEB","type":"I","h":240,"b":240,"tw":10,"tf":17,"r":21,"A":106,"Iy":11300,"Iz":3920,"Zely":938,"Zelz":327,"Sy":1050,"Sz":502,"ry":10.3,"rz":6.08,"J":230,"Iw":19700000,"u":0.847,"x":8.6},{"name":"HEB260","fam":"HEB","type":"I","h":260,"b":260,"tw":10,"tf":17.5,"r":24,"A":118,"Iy":14900,"Iz":5130,"Zely":1150,"Zelz":395,"Sy":1290,"Sz":603,"ry":11.2,"rz":6.58,"J":274,"Iw":28200000,"u":0.854,"x":9},{"name":"HEB280","fam":"HEB","type":"I","h":280,"b":280,"tw":10.5,"tf":18,"r":24,"A":131,"Iy":19300,"Iz":6590,"Zely":1380,"Zelz":471,"Sy":1530,"Sz":718,"ry":12.1,"rz":7.09,"J":332,"Iw":39700000,"u":0.851,"x":9.3},{"name":"HEB300","fam":"HEB","type":"I","h":300,"b":300,"tw":11,"tf":19,"r":27,"A":149,"Iy":25200,"Iz":8560,"Zely":1680,"Zelz":571,"Sy":1860,"Sz":870,"ry":13,"rz":7.58,"J":431,"Iw":57300000,"u":0.85,"x":9.4},{"name":"HEB320","fam":"HEB","type":"I","h":320,"b":300,"tw":11.5,"tf":20.5,"r":27,"A":161,"Iy":30800,"Iz":9240,"Zely":1930,"Zelz":616,"Sy":2140,"Sz":938,"ry":13.8,"rz":7.57,"J":555,"Iw":61800000,"u":0.862,"x":9.1},{"name":"HEB340","fam":"HEB","type":"I","h":340,"b":300,"tw":12,"tf":21.5,"r":27,"A":171,"Iy":36700,"Iz":9690,"Zely":2160,"Zelz":646,"Sy":2400,"Sz":985,"ry":14.6,"rz":7.53,"J":623,"Iw":64700000,"u":0.87,"x":9.4},{"name":"HEB360","fam":"HEB","type":"I","h":360,"b":300,"tw":12.5,"tf":22.5,"r":27,"A":181,"Iy":43200,"Iz":10100,"Zely":2400,"Zelz":676,"Sy":2670,"Sz":1030,"ry":15.4,"rz":7.49,"J":703,"Iw":67400000,"u":0.875,"x":9.7},{"name":"HEB400","fam":"HEB","type":"I","h":400,"b":300,"tw":13.5,"tf":24,"r":27,"A":198,"Iy":57700,"Iz":10800,"Zely":2880,"Zelz":721,"Sy":3230,"Sz":1100,"ry":17.1,"rz":7.4,"J":875,"Iw":71500000,"u":0.884,"x":10.1},{"name":"HEB450","fam":"HEB","type":"I","h":450,"b":300,"tw":14,"tf":26,"r":27,"A":218,"Iy":79800,"Iz":11700,"Zely":3550,"Zelz":781,"Sy":3980,"Sz":1190,"ry":19.1,"rz":7.33,"J":1100,"Iw":77600000,"u":0.892,"x":10.7},{"name":"HEB500","fam":"HEB","type":"I","h":500,"b":300,"tw":14.5,"tf":28,"r":27,"A":239,"Iy":107200,"Iz":12600,"Zely":4290,"Zelz":842,"Sy":4810,"Sz":1280,"ry":21.2,"rz":7.27,"J":1360,"Iw":83300000,"u":0.895,"x":11.2},{"name":"HEB550","fam":"HEB","type":"I","h":550,"b":300,"tw":15,"tf":29,"r":27,"A":254,"Iy":136700,"Iz":13100,"Zely":4970,"Zelz":873,"Sy":5590,"Sz":1330,"ry":23.2,"rz":7.19,"J":1540,"Iw":86200000,"u":0.896,"x":12},{"name":"HEB600","fam":"HEB","type":"I","h":600,"b":300,"tw":15.5,"tf":30,"r":27,"A":270,"Iy":171000,"Iz":13700,"Zely":5700,"Zelz":914,"Sy":6420,"Sz":1390,"ry":25.2,"rz":7.13,"J":1750,"Iw":90100000,"u":0.895,"x":12.7},{"name":"CHS 21.3x2.6","fam":"CHS","type":"CHS","h":21.3,"b":21.3,"D":21.3,"t":2.6,"tw":2.6,"tf":2.6,"r":0,"A":1.53,"Iy":1,"Iz":1,"Zely":0.6,"Zelz":0.6,"Sy":0.9,"Sz":0.9,"ry":0.67,"rz":0.67,"J":1,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 21.3x3.2","fam":"CHS","type":"CHS","h":21.3,"b":21.3,"D":21.3,"t":3.2,"tw":3.2,"tf":3.2,"r":0,"A":1.82,"Iy":1,"Iz":1,"Zely":0.7,"Zelz":0.7,"Sy":1.1,"Sz":1.1,"ry":0.65,"rz":0.65,"J":2,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 26.9x2.6","fam":"CHS","type":"CHS","h":26.9,"b":26.9,"D":26.9,"t":2.6,"tw":2.6,"tf":2.6,"r":0,"A":1.98,"Iy":1,"Iz":1,"Zely":1.1,"Zelz":1.1,"Sy":1.5,"Sz":1.5,"ry":0.86,"rz":0.86,"J":3,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 26.9x3.2","fam":"CHS","type":"CHS","h":26.9,"b":26.9,"D":26.9,"t":3.2,"tw":3.2,"tf":3.2,"r":0,"A":2.38,"Iy":2,"Iz":2,"Zely":1.3,"Zelz":1.3,"Sy":1.8,"Sz":1.8,"ry":0.85,"rz":0.85,"J":3,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 33.7x2.6","fam":"CHS","type":"CHS","h":33.7,"b":33.7,"D":33.7,"t":2.6,"tw":2.6,"tf":2.6,"r":0,"A":2.54,"Iy":3,"Iz":3,"Zely":1.8,"Zelz":1.8,"Sy":2.5,"Sz":2.5,"ry":1.1,"rz":1.1,"J":6,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 33.7x3.2","fam":"CHS","type":"CHS","h":33.7,"b":33.7,"D":33.7,"t":3.2,"tw":3.2,"tf":3.2,"r":0,"A":3.07,"Iy":4,"Iz":4,"Zely":2.1,"Zelz":2.1,"Sy":3,"Sz":3,"ry":1.08,"rz":1.08,"J":7,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 33.7x4","fam":"CHS","type":"CHS","h":33.7,"b":33.7,"D":33.7,"t":4,"tw":4,"tf":4,"r":0,"A":3.73,"Iy":4,"Iz":4,"Zely":2.5,"Zelz":2.5,"Sy":3.5,"Sz":3.5,"ry":1.06,"rz":1.06,"J":8,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 42.4x2.6","fam":"CHS","type":"CHS","h":42.4,"b":42.4,"D":42.4,"t":2.6,"tw":2.6,"tf":2.6,"r":0,"A":3.25,"Iy":6,"Iz":6,"Zely":3,"Zelz":3,"Sy":4.1,"Sz":4.1,"ry":1.41,"rz":1.41,"J":13,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 42.4x3.2","fam":"CHS","type":"CHS","h":42.4,"b":42.4,"D":42.4,"t":3.2,"tw":3.2,"tf":3.2,"r":0,"A":3.94,"Iy":8,"Iz":8,"Zely":3.6,"Zelz":3.6,"Sy":4.9,"Sz":4.9,"ry":1.39,"rz":1.39,"J":15,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 42.4x4","fam":"CHS","type":"CHS","h":42.4,"b":42.4,"D":42.4,"t":4,"tw":4,"tf":4,"r":0,"A":4.83,"Iy":9,"Iz":9,"Zely":4.2,"Zelz":4.2,"Sy":5.9,"Sz":5.9,"ry":1.36,"rz":1.36,"J":18,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 48.3x3.2","fam":"CHS","type":"CHS","h":48.3,"b":48.3,"D":48.3,"t":3.2,"tw":3.2,"tf":3.2,"r":0,"A":4.53,"Iy":12,"Iz":12,"Zely":4.8,"Zelz":4.8,"Sy":6.5,"Sz":6.5,"ry":1.6,"rz":1.6,"J":23,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 48.3x4","fam":"CHS","type":"CHS","h":48.3,"b":48.3,"D":48.3,"t":4,"tw":4,"tf":4,"r":0,"A":5.57,"Iy":14,"Iz":14,"Zely":5.7,"Zelz":5.7,"Sy":7.9,"Sz":7.9,"ry":1.57,"rz":1.57,"J":28,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 48.3x5","fam":"CHS","type":"CHS","h":48.3,"b":48.3,"D":48.3,"t":5,"tw":5,"tf":5,"r":0,"A":6.8,"Iy":16,"Iz":16,"Zely":6.7,"Zelz":6.7,"Sy":9.4,"Sz":9.4,"ry":1.54,"rz":1.54,"J":32,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 60.3x3.2","fam":"CHS","type":"CHS","h":60.3,"b":60.3,"D":60.3,"t":3.2,"tw":3.2,"tf":3.2,"r":0,"A":5.74,"Iy":23,"Iz":23,"Zely":7.8,"Zelz":7.8,"Sy":10.4,"Sz":10.4,"ry":2.02,"rz":2.02,"J":47,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 60.3x4","fam":"CHS","type":"CHS","h":60.3,"b":60.3,"D":60.3,"t":4,"tw":4,"tf":4,"r":0,"A":7.07,"Iy":28,"Iz":28,"Zely":9.3,"Zelz":9.3,"Sy":12.7,"Sz":12.7,"ry":2,"rz":2,"J":56,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 60.3x5","fam":"CHS","type":"CHS","h":60.3,"b":60.3,"D":60.3,"t":5,"tw":5,"tf":5,"r":0,"A":8.69,"Iy":33,"Iz":33,"Zely":11.1,"Zelz":11.1,"Sy":15.3,"Sz":15.3,"ry":1.96,"rz":1.96,"J":67,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 76.1x3.2","fam":"CHS","type":"CHS","h":76.1,"b":76.1,"D":76.1,"t":3.2,"tw":3.2,"tf":3.2,"r":0,"A":7.33,"Iy":49,"Iz":49,"Zely":12.8,"Zelz":12.8,"Sy":17,"Sz":17,"ry":2.58,"rz":2.58,"J":98,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 76.1x4","fam":"CHS","type":"CHS","h":76.1,"b":76.1,"D":76.1,"t":4,"tw":4,"tf":4,"r":0,"A":9.06,"Iy":59,"Iz":59,"Zely":15.5,"Zelz":15.5,"Sy":20.8,"Sz":20.8,"ry":2.55,"rz":2.55,"J":118,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 76.1x5","fam":"CHS","type":"CHS","h":76.1,"b":76.1,"D":76.1,"t":5,"tw":5,"tf":5,"r":0,"A":11.17,"Iy":71,"Iz":71,"Zely":18.6,"Zelz":18.6,"Sy":25.3,"Sz":25.3,"ry":2.52,"rz":2.52,"J":142,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 76.1x6.3","fam":"CHS","type":"CHS","h":76.1,"b":76.1,"D":76.1,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":13.81,"Iy":85,"Iz":85,"Zely":22.3,"Zelz":22.3,"Sy":30.8,"Sz":30.8,"ry":2.48,"rz":2.48,"J":170,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 88.9x3.2","fam":"CHS","type":"CHS","h":88.9,"b":88.9,"D":88.9,"t":3.2,"tw":3.2,"tf":3.2,"r":0,"A":8.62,"Iy":79,"Iz":79,"Zely":17.8,"Zelz":17.8,"Sy":23.5,"Sz":23.5,"ry":3.03,"rz":3.03,"J":158,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 88.9x4","fam":"CHS","type":"CHS","h":88.9,"b":88.9,"D":88.9,"t":4,"tw":4,"tf":4,"r":0,"A":10.67,"Iy":96,"Iz":96,"Zely":21.7,"Zelz":21.7,"Sy":28.9,"Sz":28.9,"ry":3,"rz":3,"J":193,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 88.9x5","fam":"CHS","type":"CHS","h":88.9,"b":88.9,"D":88.9,"t":5,"tw":5,"tf":5,"r":0,"A":13.18,"Iy":116,"Iz":116,"Zely":26.2,"Zelz":26.2,"Sy":35.2,"Sz":35.2,"ry":2.97,"rz":2.97,"J":233,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 88.9x6.3","fam":"CHS","type":"CHS","h":88.9,"b":88.9,"D":88.9,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":16.35,"Iy":140,"Iz":140,"Zely":31.5,"Zelz":31.5,"Sy":43.1,"Sz":43.1,"ry":2.93,"rz":2.93,"J":280,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 114.3x3.6","fam":"CHS","type":"CHS","h":114.3,"b":114.3,"D":114.3,"t":3.6,"tw":3.6,"tf":3.6,"r":0,"A":12.52,"Iy":192,"Iz":192,"Zely":33.6,"Zelz":33.6,"Sy":44.1,"Sz":44.1,"ry":3.92,"rz":3.92,"J":384,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 114.3x5","fam":"CHS","type":"CHS","h":114.3,"b":114.3,"D":114.3,"t":5,"tw":5,"tf":5,"r":0,"A":17.17,"Iy":257,"Iz":257,"Zely":45,"Zelz":45,"Sy":59.8,"Sz":59.8,"ry":3.87,"rz":3.87,"J":514,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 114.3x6.3","fam":"CHS","type":"CHS","h":114.3,"b":114.3,"D":114.3,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":21.38,"Iy":313,"Iz":313,"Zely":54.7,"Zelz":54.7,"Sy":73.6,"Sz":73.6,"ry":3.82,"rz":3.82,"J":625,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 139.7x5","fam":"CHS","type":"CHS","h":139.7,"b":139.7,"D":139.7,"t":5,"tw":5,"tf":5,"r":0,"A":21.16,"Iy":481,"Iz":481,"Zely":68.8,"Zelz":68.8,"Sy":90.8,"Sz":90.8,"ry":4.77,"rz":4.77,"J":961,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 139.7x6.3","fam":"CHS","type":"CHS","h":139.7,"b":139.7,"D":139.7,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":26.4,"Iy":589,"Iz":589,"Zely":84.3,"Zelz":84.3,"Sy":112.2,"Sz":112.2,"ry":4.72,"rz":4.72,"J":1177,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 139.7x8","fam":"CHS","type":"CHS","h":139.7,"b":139.7,"D":139.7,"t":8,"tw":8,"tf":8,"r":0,"A":33.1,"Iy":720,"Iz":720,"Zely":103.1,"Zelz":103.1,"Sy":138.9,"Sz":138.9,"ry":4.66,"rz":4.66,"J":1441,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 139.7x10","fam":"CHS","type":"CHS","h":139.7,"b":139.7,"D":139.7,"t":10,"tw":10,"tf":10,"r":0,"A":40.75,"Iy":862,"Iz":862,"Zely":123.4,"Zelz":123.4,"Sy":168.6,"Sz":168.6,"ry":4.6,"rz":4.6,"J":1724,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 168.3x5","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"D":168.3,"t":5,"tw":5,"tf":5,"r":0,"A":25.65,"Iy":856,"Iz":856,"Zely":101.7,"Zelz":101.7,"Sy":133.4,"Sz":133.4,"ry":5.78,"rz":5.78,"J":1712,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 168.3x6.3","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"D":168.3,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":32.06,"Iy":1053,"Iz":1053,"Zely":125.2,"Zelz":125.2,"Sy":165.4,"Sz":165.4,"ry":5.73,"rz":5.73,"J":2107,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 168.3x8","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"D":168.3,"t":8,"tw":8,"tf":8,"r":0,"A":40.29,"Iy":1297,"Iz":1297,"Zely":154.2,"Zelz":154.2,"Sy":205.7,"Sz":205.7,"ry":5.67,"rz":5.67,"J":2595,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 168.3x10","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"D":168.3,"t":10,"tw":10,"tf":10,"r":0,"A":49.73,"Iy":1564,"Iz":1564,"Zely":185.9,"Zelz":185.9,"Sy":250.9,"Sz":250.9,"ry":5.61,"rz":5.61,"J":3128,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 168.3x12.5","fam":"CHS","type":"CHS","h":168.3,"b":168.3,"D":168.3,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":61.18,"Iy":1868,"Iz":1868,"Zely":222,"Zelz":222,"Sy":304.1,"Sz":304.1,"ry":5.53,"rz":5.53,"J":3737,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 193.7x5","fam":"CHS","type":"CHS","h":193.7,"b":193.7,"D":193.7,"t":5,"tw":5,"tf":5,"r":0,"A":29.64,"Iy":1320,"Iz":1320,"Zely":136.3,"Zelz":136.3,"Sy":178.1,"Sz":178.1,"ry":6.67,"rz":6.67,"J":2640,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 193.7x6.3","fam":"CHS","type":"CHS","h":193.7,"b":193.7,"D":193.7,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":37.09,"Iy":1630,"Iz":1630,"Zely":168.3,"Zelz":168.3,"Sy":221.3,"Sz":221.3,"ry":6.63,"rz":6.63,"J":3260,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 193.7x8","fam":"CHS","type":"CHS","h":193.7,"b":193.7,"D":193.7,"t":8,"tw":8,"tf":8,"r":0,"A":46.67,"Iy":2016,"Iz":2016,"Zely":208.1,"Zelz":208.1,"Sy":276,"Sz":276,"ry":6.57,"rz":6.57,"J":4031,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 193.7x10","fam":"CHS","type":"CHS","h":193.7,"b":193.7,"D":193.7,"t":10,"tw":10,"tf":10,"r":0,"A":57.71,"Iy":2442,"Iz":2442,"Zely":252.1,"Zelz":252.1,"Sy":337.8,"Sz":337.8,"ry":6.5,"rz":6.5,"J":4883,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 193.7x12.5","fam":"CHS","type":"CHS","h":193.7,"b":193.7,"D":193.7,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":71.16,"Iy":2934,"Iz":2934,"Zely":303,"Zelz":303,"Sy":411.1,"Sz":411.1,"ry":6.42,"rz":6.42,"J":5869,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 219.1x6.3","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"D":219.1,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":42.12,"Iy":2386,"Iz":2386,"Zely":217.8,"Zelz":217.8,"Sy":285.4,"Sz":285.4,"ry":7.53,"rz":7.53,"J":4772,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 219.1x8","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"D":219.1,"t":8,"tw":8,"tf":8,"r":0,"A":53.06,"Iy":2960,"Iz":2960,"Zely":270.2,"Zelz":270.2,"Sy":356.7,"Sz":356.7,"ry":7.47,"rz":7.47,"J":5919,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 219.1x10","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"D":219.1,"t":10,"tw":10,"tf":10,"r":0,"A":65.69,"Iy":3598,"Iz":3598,"Zely":328.5,"Zelz":328.5,"Sy":437.6,"Sz":437.6,"ry":7.4,"rz":7.4,"J":7197,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 219.1x12.5","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"D":219.1,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":81.13,"Iy":4345,"Iz":4345,"Zely":396.6,"Zelz":396.6,"Sy":534.2,"Sz":534.2,"ry":7.32,"rz":7.32,"J":8689,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 219.1x16","fam":"CHS","type":"CHS","h":219.1,"b":219.1,"D":219.1,"t":16,"tw":16,"tf":16,"r":0,"A":102.09,"Iy":5297,"Iz":5297,"Zely":483.5,"Zelz":483.5,"Sy":661.4,"Sz":661.4,"ry":7.2,"rz":7.2,"J":10593,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 244.5x6.3","fam":"CHS","type":"CHS","h":244.5,"b":244.5,"D":244.5,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":47.14,"Iy":3346,"Iz":3346,"Zely":273.7,"Zelz":273.7,"Sy":357.5,"Sz":357.5,"ry":8.42,"rz":8.42,"J":6692,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 244.5x8","fam":"CHS","type":"CHS","h":244.5,"b":244.5,"D":244.5,"t":8,"tw":8,"tf":8,"r":0,"A":59.44,"Iy":4160,"Iz":4160,"Zely":340.3,"Zelz":340.3,"Sy":447.6,"Sz":447.6,"ry":8.37,"rz":8.37,"J":8321,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 244.5x10","fam":"CHS","type":"CHS","h":244.5,"b":244.5,"D":244.5,"t":10,"tw":10,"tf":10,"r":0,"A":73.67,"Iy":5073,"Iz":5073,"Zely":415,"Zelz":415,"Sy":550.2,"Sz":550.2,"ry":8.3,"rz":8.3,"J":10146,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 244.5x12.5","fam":"CHS","type":"CHS","h":244.5,"b":244.5,"D":244.5,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":91.11,"Iy":6147,"Iz":6147,"Zely":502.9,"Zelz":502.9,"Sy":673.5,"Sz":673.5,"ry":8.21,"rz":8.21,"J":12295,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 244.5x16","fam":"CHS","type":"CHS","h":244.5,"b":244.5,"D":244.5,"t":16,"tw":16,"tf":16,"r":0,"A":114.86,"Iy":7533,"Iz":7533,"Zely":616.2,"Zelz":616.2,"Sy":836.8,"Sz":836.8,"ry":8.1,"rz":8.1,"J":15066,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 273x6.3","fam":"CHS","type":"CHS","h":273,"b":273,"D":273,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":52.79,"Iy":4696,"Iz":4696,"Zely":344,"Zelz":344,"Sy":448.2,"Sz":448.2,"ry":9.43,"rz":9.43,"J":9392,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 273x8","fam":"CHS","type":"CHS","h":273,"b":273,"D":273,"t":8,"tw":8,"tf":8,"r":0,"A":66.6,"Iy":5852,"Iz":5852,"Zely":428.7,"Zelz":428.7,"Sy":562,"Sz":562,"ry":9.37,"rz":9.37,"J":11703,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 273x10","fam":"CHS","type":"CHS","h":273,"b":273,"D":273,"t":10,"tw":10,"tf":10,"r":0,"A":82.62,"Iy":7154,"Iz":7154,"Zely":524.1,"Zelz":524.1,"Sy":692,"Sz":692,"ry":9.31,"rz":9.31,"J":14308,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 273x12.5","fam":"CHS","type":"CHS","h":273,"b":273,"D":273,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":102.3,"Iy":8697,"Iz":8697,"Zely":637.2,"Zelz":637.2,"Sy":848.9,"Sz":848.9,"ry":9.22,"rz":9.22,"J":17395,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 273x16","fam":"CHS","type":"CHS","h":273,"b":273,"D":273,"t":16,"tw":16,"tf":16,"r":0,"A":129.18,"Iy":10707,"Iz":10707,"Zely":784.4,"Zelz":784.4,"Sy":1058.1,"Sz":1058.1,"ry":9.1,"rz":9.1,"J":21414,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 323.9x6.3","fam":"CHS","type":"CHS","h":323.9,"b":323.9,"D":323.9,"t":6.3,"tw":6.3,"tf":6.3,"r":0,"A":62.86,"Iy":7929,"Iz":7929,"Zely":489.6,"Zelz":489.6,"Sy":635.6,"Sz":635.6,"ry":11.23,"rz":11.23,"J":15858,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 323.9x8","fam":"CHS","type":"CHS","h":323.9,"b":323.9,"D":323.9,"t":8,"tw":8,"tf":8,"r":0,"A":79.39,"Iy":9910,"Iz":9910,"Zely":611.9,"Zelz":611.9,"Sy":798.5,"Sz":798.5,"ry":11.17,"rz":11.17,"J":19820,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 323.9x10","fam":"CHS","type":"CHS","h":323.9,"b":323.9,"D":323.9,"t":10,"tw":10,"tf":10,"r":0,"A":98.61,"Iy":12158,"Iz":12158,"Zely":750.7,"Zelz":750.7,"Sy":985.7,"Sz":985.7,"ry":11.1,"rz":11.1,"J":24317,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 323.9x12.5","fam":"CHS","type":"CHS","h":323.9,"b":323.9,"D":323.9,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":122.29,"Iy":14847,"Iz":14847,"Zely":916.7,"Zelz":916.7,"Sy":1212.8,"Sz":1212.8,"ry":11.02,"rz":11.02,"J":29693,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 323.9x16","fam":"CHS","type":"CHS","h":323.9,"b":323.9,"D":323.9,"t":16,"tw":16,"tf":16,"r":0,"A":154.77,"Iy":18390,"Iz":18390,"Zely":1135.5,"Zelz":1135.5,"Sy":1518.2,"Sz":1518.2,"ry":10.9,"rz":10.9,"J":36780,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 355.6x8","fam":"CHS","type":"CHS","h":355.6,"b":355.6,"D":355.6,"t":8,"tw":8,"tf":8,"r":0,"A":87.36,"Iy":13201,"Iz":13201,"Zely":742.5,"Zelz":742.5,"Sy":966.8,"Sz":966.8,"ry":12.29,"rz":12.29,"J":26403,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 355.6x10","fam":"CHS","type":"CHS","h":355.6,"b":355.6,"D":355.6,"t":10,"tw":10,"tf":10,"r":0,"A":108.57,"Iy":16223,"Iz":16223,"Zely":912.5,"Zelz":912.5,"Sy":1194.7,"Sz":1194.7,"ry":12.22,"rz":12.22,"J":32447,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 355.6x12.5","fam":"CHS","type":"CHS","h":355.6,"b":355.6,"D":355.6,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":134.74,"Iy":19852,"Iz":19852,"Zely":1116.5,"Zelz":1116.5,"Sy":1472.1,"Sz":1472.1,"ry":12.14,"rz":12.14,"J":39704,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 355.6x16","fam":"CHS","type":"CHS","h":355.6,"b":355.6,"D":355.6,"t":16,"tw":16,"tf":16,"r":0,"A":170.7,"Iy":24663,"Iz":24663,"Zely":1387.1,"Zelz":1387.1,"Sy":1846.6,"Sz":1846.6,"ry":12.02,"rz":12.02,"J":49326,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 406.4x10","fam":"CHS","type":"CHS","h":406.4,"b":406.4,"D":406.4,"t":10,"tw":10,"tf":10,"r":0,"A":124.53,"Iy":24476,"Iz":24476,"Zely":1204.5,"Zelz":1204.5,"Sy":1571.7,"Sz":1571.7,"ry":14.02,"rz":14.02,"J":48952,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 406.4x12.5","fam":"CHS","type":"CHS","h":406.4,"b":406.4,"D":406.4,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":154.68,"Iy":30031,"Iz":30031,"Zely":1477.9,"Zelz":1477.9,"Sy":1940.1,"Sz":1940.1,"ry":13.93,"rz":13.93,"J":60061,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 406.4x16","fam":"CHS","type":"CHS","h":406.4,"b":406.4,"D":406.4,"t":16,"tw":16,"tf":16,"r":0,"A":196.24,"Iy":37449,"Iz":37449,"Zely":1843,"Zelz":1843,"Sy":2440,"Sz":2440,"ry":13.81,"rz":13.81,"J":74898,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 457x10","fam":"CHS","type":"CHS","h":457,"b":457,"D":457,"t":10,"tw":10,"tf":10,"r":0,"A":140.43,"Iy":35091,"Iz":35091,"Zely":1535.7,"Zelz":1535.7,"Sy":1998.4,"Sz":1998.4,"ry":15.81,"rz":15.81,"J":70183,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 457x12.5","fam":"CHS","type":"CHS","h":457,"b":457,"D":457,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":174.55,"Iy":43145,"Iz":43145,"Zely":1888.2,"Zelz":1888.2,"Sy":2470.4,"Sz":2470.4,"ry":15.72,"rz":15.72,"J":86290,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 457x16","fam":"CHS","type":"CHS","h":457,"b":457,"D":457,"t":16,"tw":16,"tf":16,"r":0,"A":221.67,"Iy":53959,"Iz":53959,"Zely":2361.5,"Zelz":2361.5,"Sy":3113.1,"Sz":3113.1,"ry":15.6,"rz":15.6,"J":107919,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 508x10","fam":"CHS","type":"CHS","h":508,"b":508,"D":508,"t":10,"tw":10,"tf":10,"r":0,"A":156.45,"Iy":48520,"Iz":48520,"Zely":1910.2,"Zelz":1910.2,"Sy":2480.4,"Sz":2480.4,"ry":17.61,"rz":17.61,"J":97040,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 508x12.5","fam":"CHS","type":"CHS","h":508,"b":508,"D":508,"t":12.5,"tw":12.5,"tf":12.5,"r":0,"A":194.58,"Iy":59755,"Iz":59755,"Zely":2352.6,"Zelz":2352.6,"Sy":3069.7,"Sz":3069.7,"ry":17.52,"rz":17.52,"J":119511,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"CHS 508x16","fam":"CHS","type":"CHS","h":508,"b":508,"D":508,"t":16,"tw":16,"tf":16,"r":0,"A":247.31,"Iy":74909,"Iz":74909,"Zely":2949.2,"Zelz":2949.2,"Sy":3874.4,"Sz":3874.4,"ry":17.4,"rz":17.4,"J":149818,"Iw":0,"u":0.9,"x":1000000,"computed":true},{"name":"SHS 40x40x3","fam":"SHS","type":"RHS","h":40,"b":40,"t":3,"tw":3,"tf":3,"r":4.5,"A":4.29,"Iy":10,"Iz":10,"Zely":5.1,"Zelz":5.1,"Sy":6.2,"Sz":6.2,"ry":1.54,"rz":1.54,"J":15,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 40x40x4","fam":"SHS","type":"RHS","h":40,"b":40,"t":4,"tw":4,"tf":4,"r":6,"A":5.49,"Iy":13,"Iz":13,"Zely":6.3,"Zelz":6.3,"Sy":7.8,"Sz":7.8,"ry":1.52,"rz":1.52,"J":19,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 40x40x5","fam":"SHS","type":"RHS","h":40,"b":40,"t":5,"tw":5,"tf":5,"r":7.5,"A":6.57,"Iy":15,"Iz":15,"Zely":7.3,"Zelz":7.3,"Sy":9.3,"Sz":9.3,"ry":1.49,"rz":1.49,"J":21,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 50x50x3","fam":"SHS","type":"RHS","h":50,"b":50,"t":3,"tw":3,"tf":3,"r":4.5,"A":5.49,"Iy":21,"Iz":21,"Zely":8.3,"Zelz":8.3,"Sy":10,"Sz":10,"ry":1.95,"rz":1.95,"J":31,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 50x50x4","fam":"SHS","type":"RHS","h":50,"b":50,"t":4,"tw":4,"tf":4,"r":6,"A":7.09,"Iy":26,"Iz":26,"Zely":10.5,"Zelz":10.5,"Sy":12.7,"Sz":12.7,"ry":1.92,"rz":1.92,"J":39,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 50x50x5","fam":"SHS","type":"RHS","h":50,"b":50,"t":5,"tw":5,"tf":5,"r":7.5,"A":8.57,"Iy":31,"Iz":31,"Zely":12.3,"Zelz":12.3,"Sy":15.3,"Sz":15.3,"ry":1.89,"rz":1.89,"J":46,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 50x50x6.3","fam":"SHS","type":"RHS","h":50,"b":50,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":10.33,"Iy":36,"Iz":36,"Zely":14.3,"Zelz":14.3,"Sy":18.2,"Sz":18.2,"ry":1.86,"rz":1.86,"J":53,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 60x60x3","fam":"SHS","type":"RHS","h":60,"b":60,"t":3,"tw":3,"tf":3,"r":4.5,"A":6.69,"Iy":37,"Iz":37,"Zely":12.4,"Zelz":12.4,"Sy":14.6,"Sz":14.6,"ry":2.36,"rz":2.36,"J":56,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 60x60x4","fam":"SHS","type":"RHS","h":60,"b":60,"t":4,"tw":4,"tf":4,"r":6,"A":8.69,"Iy":47,"Iz":47,"Zely":15.7,"Zelz":15.7,"Sy":18.8,"Sz":18.8,"ry":2.33,"rz":2.33,"J":70,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 60x60x5","fam":"SHS","type":"RHS","h":60,"b":60,"t":5,"tw":5,"tf":5,"r":7.5,"A":10.57,"Iy":56,"Iz":56,"Zely":18.6,"Zelz":18.6,"Sy":22.8,"Sz":22.8,"ry":2.3,"rz":2.3,"J":83,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 60x60x6.3","fam":"SHS","type":"RHS","h":60,"b":60,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":12.85,"Iy":66,"Iz":66,"Zely":22,"Zelz":22,"Sy":27.4,"Sz":27.4,"ry":2.27,"rz":2.27,"J":98,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 60x60x8","fam":"SHS","type":"RHS","h":60,"b":60,"t":8,"tw":8,"tf":8,"r":12,"A":15.54,"Iy":77,"Iz":77,"Zely":25.6,"Zelz":25.6,"Sy":32.7,"Sz":32.7,"ry":2.22,"rz":2.22,"J":112,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 70x70x3.6","fam":"SHS","type":"RHS","h":70,"b":70,"t":3.6,"tw":3.6,"tf":3.6,"r":5.4,"A":9.34,"Iy":70,"Iz":70,"Zely":20.1,"Zelz":20.1,"Sy":23.8,"Sz":23.8,"ry":2.75,"rz":2.75,"J":105,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 70x70x5","fam":"SHS","type":"RHS","h":70,"b":70,"t":5,"tw":5,"tf":5,"r":7.5,"A":12.57,"Iy":92,"Iz":92,"Zely":26.3,"Zelz":26.3,"Sy":31.8,"Sz":31.8,"ry":2.71,"rz":2.71,"J":137,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 70x70x6.3","fam":"SHS","type":"RHS","h":70,"b":70,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":15.37,"Iy":110,"Iz":110,"Zely":31.3,"Zelz":31.3,"Sy":38.5,"Sz":38.5,"ry":2.67,"rz":2.67,"J":163,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 70x70x8","fam":"SHS","type":"RHS","h":70,"b":70,"t":8,"tw":8,"tf":8,"r":12,"A":18.74,"Iy":129,"Iz":129,"Zely":36.9,"Zelz":36.9,"Sy":46.4,"Sz":46.4,"ry":2.63,"rz":2.63,"J":191,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 80x80x3.6","fam":"SHS","type":"RHS","h":80,"b":80,"t":3.6,"tw":3.6,"tf":3.6,"r":5.4,"A":10.78,"Iy":107,"Iz":107,"Zely":26.8,"Zelz":26.8,"Sy":31.5,"Sz":31.5,"ry":3.15,"rz":3.15,"J":161,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 80x80x5","fam":"SHS","type":"RHS","h":80,"b":80,"t":5,"tw":5,"tf":5,"r":7.5,"A":14.57,"Iy":141,"Iz":141,"Zely":35.3,"Zelz":35.3,"Sy":42.3,"Sz":42.3,"ry":3.11,"rz":3.11,"J":211,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 80x80x6.3","fam":"SHS","type":"RHS","h":80,"b":80,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":17.89,"Iy":169,"Iz":169,"Zely":42.3,"Zelz":42.3,"Sy":51.5,"Sz":51.5,"ry":3.08,"rz":3.08,"J":252,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 80x80x8","fam":"SHS","type":"RHS","h":80,"b":80,"t":8,"tw":8,"tf":8,"r":12,"A":21.94,"Iy":202,"Iz":202,"Zely":50.4,"Zelz":50.4,"Sy":62.5,"Sz":62.5,"ry":3.03,"rz":3.03,"J":299,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 90x90x3.6","fam":"SHS","type":"RHS","h":90,"b":90,"t":3.6,"tw":3.6,"tf":3.6,"r":5.4,"A":12.22,"Iy":155,"Iz":155,"Zely":34.5,"Zelz":34.5,"Sy":40.3,"Sz":40.3,"ry":3.56,"rz":3.56,"J":232,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 90x90x5","fam":"SHS","type":"RHS","h":90,"b":90,"t":5,"tw":5,"tf":5,"r":7.5,"A":16.57,"Iy":205,"Iz":205,"Zely":45.6,"Zelz":45.6,"Sy":54.3,"Sz":54.3,"ry":3.52,"rz":3.52,"J":307,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 90x90x6.3","fam":"SHS","type":"RHS","h":90,"b":90,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":20.41,"Iy":248,"Iz":248,"Zely":55,"Zelz":55,"Sy":66.3,"Sz":66.3,"ry":3.48,"rz":3.48,"J":369,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 90x90x8","fam":"SHS","type":"RHS","h":90,"b":90,"t":8,"tw":8,"tf":8,"r":12,"A":25.14,"Iy":297,"Iz":297,"Zely":66,"Zelz":66,"Sy":80.9,"Sz":80.9,"ry":3.44,"rz":3.44,"J":441,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 100x100x4","fam":"SHS","type":"RHS","h":100,"b":100,"t":4,"tw":4,"tf":4,"r":6,"A":15.09,"Iy":236,"Iz":236,"Zely":47.3,"Zelz":47.3,"Sy":55.3,"Sz":55.3,"ry":3.96,"rz":3.96,"J":354,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 100x100x5","fam":"SHS","type":"RHS","h":100,"b":100,"t":5,"tw":5,"tf":5,"r":7.5,"A":18.57,"Iy":287,"Iz":287,"Zely":57.3,"Zelz":57.3,"Sy":67.8,"Sz":67.8,"ry":3.93,"rz":3.93,"J":429,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 100x100x6.3","fam":"SHS","type":"RHS","h":100,"b":100,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":22.93,"Iy":347,"Iz":347,"Zely":69.4,"Zelz":69.4,"Sy":83.1,"Sz":83.1,"ry":3.89,"rz":3.89,"J":518,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 100x100x8","fam":"SHS","type":"RHS","h":100,"b":100,"t":8,"tw":8,"tf":8,"r":12,"A":28.34,"Iy":418,"Iz":418,"Zely":83.7,"Zelz":83.7,"Sy":101.8,"Sz":101.8,"ry":3.84,"rz":3.84,"J":623,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 100x100x10","fam":"SHS","type":"RHS","h":100,"b":100,"t":10,"tw":10,"tf":10,"r":15,"A":34.28,"Iy":492,"Iz":492,"Zely":98.4,"Zelz":98.4,"Sy":122,"Sz":122,"ry":3.79,"rz":3.79,"J":729,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 120x120x5","fam":"SHS","type":"RHS","h":120,"b":120,"t":5,"tw":5,"tf":5,"r":7.5,"A":22.57,"Iy":508,"Iz":508,"Zely":84.7,"Zelz":84.7,"Sy":99.3,"Sz":99.3,"ry":4.74,"rz":4.74,"J":760,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 120x120x6.3","fam":"SHS","type":"RHS","h":120,"b":120,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":27.97,"Iy":619,"Iz":619,"Zely":103.2,"Zelz":103.2,"Sy":122.3,"Sz":122.3,"ry":4.71,"rz":4.71,"J":926,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 120x120x8","fam":"SHS","type":"RHS","h":120,"b":120,"t":8,"tw":8,"tf":8,"r":12,"A":34.74,"Iy":753,"Iz":753,"Zely":125.5,"Zelz":125.5,"Sy":150.8,"Sz":150.8,"ry":4.66,"rz":4.66,"J":1124,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 120x120x10","fam":"SHS","type":"RHS","h":120,"b":120,"t":10,"tw":10,"tf":10,"r":15,"A":42.28,"Iy":895,"Iz":895,"Zely":149.1,"Zelz":149.1,"Sy":182,"Sz":182,"ry":4.6,"rz":4.6,"J":1331,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 120x120x12.5","fam":"SHS","type":"RHS","h":120,"b":120,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":51.07,"Iy":1049,"Iz":1049,"Zely":174.9,"Zelz":174.9,"Sy":217.7,"Sz":217.7,"ry":4.53,"rz":4.53,"J":1553,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 140x140x5","fam":"SHS","type":"RHS","h":140,"b":140,"t":5,"tw":5,"tf":5,"r":7.5,"A":26.57,"Iy":821,"Iz":821,"Zely":117.3,"Zelz":117.3,"Sy":136.8,"Sz":136.8,"ry":5.56,"rz":5.56,"J":1230,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 140x140x6.3","fam":"SHS","type":"RHS","h":140,"b":140,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":33.01,"Iy":1006,"Iz":1006,"Zely":143.7,"Zelz":143.7,"Sy":169.1,"Sz":169.1,"ry":5.52,"rz":5.52,"J":1506,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 140x140x8","fam":"SHS","type":"RHS","h":140,"b":140,"t":8,"tw":8,"tf":8,"r":12,"A":41.14,"Iy":1231,"Iz":1231,"Zely":175.9,"Zelz":175.9,"Sy":209.3,"Sz":209.3,"ry":5.47,"rz":5.47,"J":1840,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 140x140x10","fam":"SHS","type":"RHS","h":140,"b":140,"t":10,"tw":10,"tf":10,"r":15,"A":50.28,"Iy":1473,"Iz":1473,"Zely":210.5,"Zelz":210.5,"Sy":254,"Sz":254,"ry":5.41,"rz":5.41,"J":2197,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 140x140x12.5","fam":"SHS","type":"RHS","h":140,"b":140,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":61.07,"Iy":1744,"Iz":1744,"Zely":249.1,"Zelz":249.1,"Sy":305.8,"Sz":305.8,"ry":5.34,"rz":5.34,"J":2591,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 150x150x5","fam":"SHS","type":"RHS","h":150,"b":150,"t":5,"tw":5,"tf":5,"r":7.5,"A":28.57,"Iy":1017,"Iz":1017,"Zely":135.7,"Zelz":135.7,"Sy":157.8,"Sz":157.8,"ry":5.97,"rz":5.97,"J":1524,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 150x150x6.3","fam":"SHS","type":"RHS","h":150,"b":150,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":35.53,"Iy":1249,"Iz":1249,"Zely":166.5,"Zelz":166.5,"Sy":195.3,"Sz":195.3,"ry":5.93,"rz":5.93,"J":1869,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 150x150x8","fam":"SHS","type":"RHS","h":150,"b":150,"t":8,"tw":8,"tf":8,"r":12,"A":44.34,"Iy":1532,"Iz":1532,"Zely":204.3,"Zelz":204.3,"Sy":242.2,"Sz":242.2,"ry":5.88,"rz":5.88,"J":2291,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 150x150x10","fam":"SHS","type":"RHS","h":150,"b":150,"t":10,"tw":10,"tf":10,"r":15,"A":54.28,"Iy":1839,"Iz":1839,"Zely":245.2,"Zelz":245.2,"Sy":294.5,"Sz":294.5,"ry":5.82,"rz":5.82,"J":2744,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 150x150x12.5","fam":"SHS","type":"RHS","h":150,"b":150,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":66.07,"Iy":2184,"Iz":2184,"Zely":291.2,"Zelz":291.2,"Sy":355.5,"Sz":355.5,"ry":5.75,"rz":5.75,"J":3250,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 150x150x16","fam":"SHS","type":"RHS","h":150,"b":150,"t":16,"tw":16,"tf":16,"r":24,"A":81.36,"Iy":2603,"Iz":2603,"Zely":347.1,"Zelz":347.1,"Sy":433,"Sz":433,"ry":5.66,"rz":5.66,"J":3850,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 160x160x6.3","fam":"SHS","type":"RHS","h":160,"b":160,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":38.05,"Iy":1528,"Iz":1528,"Zely":190.9,"Zelz":190.9,"Sy":223.4,"Sz":223.4,"ry":6.34,"rz":6.34,"J":2288,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 160x160x8","fam":"SHS","type":"RHS","h":160,"b":160,"t":8,"tw":8,"tf":8,"r":12,"A":47.54,"Iy":1878,"Iz":1878,"Zely":234.8,"Zelz":234.8,"Sy":277.5,"Sz":277.5,"ry":6.29,"rz":6.29,"J":2809,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 160x160x10","fam":"SHS","type":"RHS","h":160,"b":160,"t":10,"tw":10,"tf":10,"r":15,"A":58.28,"Iy":2260,"Iz":2260,"Zely":282.5,"Zelz":282.5,"Sy":338,"Sz":338,"ry":6.23,"rz":6.23,"J":3375,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 160x160x12.5","fam":"SHS","type":"RHS","h":160,"b":160,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":71.07,"Iy":2693,"Iz":2693,"Zely":336.7,"Zelz":336.7,"Sy":408.9,"Sz":408.9,"ry":6.16,"rz":6.16,"J":4011,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 160x160x16","fam":"SHS","type":"RHS","h":160,"b":160,"t":16,"tw":16,"tf":16,"r":24,"A":87.76,"Iy":3224,"Iz":3224,"Zely":403,"Zelz":403,"Sy":499.7,"Sz":499.7,"ry":6.06,"rz":6.06,"J":4778,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 180x180x6.3","fam":"SHS","type":"RHS","h":180,"b":180,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":43.09,"Iy":2204,"Iz":2204,"Zely":244.9,"Zelz":244.9,"Sy":285.2,"Sz":285.2,"ry":7.15,"rz":7.15,"J":3302,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 180x180x8","fam":"SHS","type":"RHS","h":180,"b":180,"t":8,"tw":8,"tf":8,"r":12,"A":53.94,"Iy":2720,"Iz":2720,"Zely":302.2,"Zelz":302.2,"Sy":355.3,"Sz":355.3,"ry":7.1,"rz":7.1,"J":4071,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 180x180x10","fam":"SHS","type":"RHS","h":180,"b":180,"t":10,"tw":10,"tf":10,"r":15,"A":66.28,"Iy":3287,"Iz":3287,"Zely":365.2,"Zelz":365.2,"Sy":434,"Sz":434,"ry":7.04,"rz":7.04,"J":4913,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 180x180x12.5","fam":"SHS","type":"RHS","h":180,"b":180,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":81.07,"Iy":3938,"Iz":3938,"Zely":437.6,"Zelz":437.6,"Sy":527,"Sz":527,"ry":6.97,"rz":6.97,"J":5874,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 180x180x16","fam":"SHS","type":"RHS","h":180,"b":180,"t":16,"tw":16,"tf":16,"r":24,"A":100.56,"Iy":4750,"Iz":4750,"Zely":527.8,"Zelz":527.8,"Sy":647.6,"Sz":647.6,"ry":6.87,"rz":6.87,"J":7058,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 200x200x6.3","fam":"SHS","type":"RHS","h":200,"b":200,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":48.13,"Iy":3056,"Iz":3056,"Zely":305.6,"Zelz":305.6,"Sy":354.7,"Sz":354.7,"ry":7.97,"rz":7.97,"J":4579,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 200x200x8","fam":"SHS","type":"RHS","h":200,"b":200,"t":8,"tw":8,"tf":8,"r":12,"A":60.34,"Iy":3781,"Iz":3781,"Zely":378.1,"Zelz":378.1,"Sy":442.6,"Sz":442.6,"ry":7.92,"rz":7.92,"J":5662,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 200x200x10","fam":"SHS","type":"RHS","h":200,"b":200,"t":10,"tw":10,"tf":10,"r":15,"A":74.28,"Iy":4585,"Iz":4585,"Zely":458.5,"Zelz":458.5,"Sy":542,"Sz":542,"ry":7.86,"rz":7.86,"J":6859,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 200x200x12.5","fam":"SHS","type":"RHS","h":200,"b":200,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":91.07,"Iy":5518,"Iz":5518,"Zely":551.8,"Zelz":551.8,"Sy":660.2,"Sz":660.2,"ry":7.78,"rz":7.78,"J":8240,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 200x200x16","fam":"SHS","type":"RHS","h":200,"b":200,"t":16,"tw":16,"tf":16,"r":24,"A":113.36,"Iy":6695,"Iz":6695,"Zely":669.5,"Zelz":669.5,"Sy":814.6,"Sz":814.6,"ry":7.68,"rz":7.68,"J":9967,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 250x250x6.3","fam":"SHS","type":"RHS","h":250,"b":250,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":60.73,"Iy":6083,"Iz":6083,"Zely":486.6,"Zelz":486.6,"Sy":561.4,"Sz":561.4,"ry":10.01,"rz":10.01,"J":9118,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 250x250x8","fam":"SHS","type":"RHS","h":250,"b":250,"t":8,"tw":8,"tf":8,"r":12,"A":76.34,"Iy":7567,"Iz":7567,"Zely":605.4,"Zelz":605.4,"Sy":703,"Sz":703,"ry":9.96,"rz":9.96,"J":11338,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 250x250x10","fam":"SHS","type":"RHS","h":250,"b":250,"t":10,"tw":10,"tf":10,"r":15,"A":94.28,"Iy":9232,"Iz":9232,"Zely":738.6,"Zelz":738.6,"Sy":864.5,"Sz":864.5,"ry":9.9,"rz":9.9,"J":13824,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 250x250x12.5","fam":"SHS","type":"RHS","h":250,"b":250,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":116.07,"Iy":11195,"Iz":11195,"Zely":895.6,"Zelz":895.6,"Sy":1058.6,"Sz":1058.6,"ry":9.82,"rz":9.82,"J":16746,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 250x250x16","fam":"SHS","type":"RHS","h":250,"b":250,"t":16,"tw":16,"tf":16,"r":24,"A":145.36,"Iy":13731,"Iz":13731,"Zely":1098.5,"Zelz":1098.5,"Sy":1316.2,"Sz":1316.2,"ry":9.72,"rz":9.72,"J":20501,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 300x300x8","fam":"SHS","type":"RHS","h":300,"b":300,"t":8,"tw":8,"tf":8,"r":12,"A":92.34,"Iy":13288,"Iz":13288,"Zely":885.9,"Zelz":885.9,"Sy":1023.4,"Sz":1023.4,"ry":12,"rz":12,"J":19918,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 300x300x10","fam":"SHS","type":"RHS","h":300,"b":300,"t":10,"tw":10,"tf":10,"r":15,"A":114.28,"Iy":16279,"Iz":16279,"Zely":1085.2,"Zelz":1085.2,"Sy":1262,"Sz":1262,"ry":11.93,"rz":11.93,"J":24389,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 300x300x12.5","fam":"SHS","type":"RHS","h":300,"b":300,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":141.07,"Iy":19840,"Iz":19840,"Zely":1322.7,"Zelz":1322.7,"Sy":1550.8,"Sz":1550.8,"ry":11.86,"rz":11.86,"J":29705,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 300x300x16","fam":"SHS","type":"RHS","h":300,"b":300,"t":16,"tw":16,"tf":16,"r":24,"A":177.36,"Iy":24511,"Iz":24511,"Zely":1634.1,"Zelz":1634.1,"Sy":1937.8,"Sz":1937.8,"ry":11.76,"rz":11.76,"J":36650,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 350x350x8","fam":"SHS","type":"RHS","h":350,"b":350,"t":8,"tw":8,"tf":8,"r":12,"A":108.34,"Iy":21346,"Iz":21346,"Zely":1219.8,"Zelz":1219.8,"Sy":1403.8,"Sz":1403.8,"ry":14.04,"rz":14.04,"J":32001,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 350x350x10","fam":"SHS","type":"RHS","h":350,"b":350,"t":10,"tw":10,"tf":10,"r":15,"A":134.28,"Iy":26225,"Iz":26225,"Zely":1498.6,"Zelz":1498.6,"Sy":1734.5,"Sz":1734.5,"ry":13.97,"rz":13.97,"J":39304,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 350x350x12.5","fam":"SHS","type":"RHS","h":350,"b":350,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":166.07,"Iy":32080,"Iz":32080,"Zely":1833.1,"Zelz":1833.1,"Sy":2136.7,"Sz":2136.7,"ry":13.9,"rz":13.9,"J":48054,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 350x350x16","fam":"SHS","type":"RHS","h":350,"b":350,"t":16,"tw":16,"tf":16,"r":24,"A":209.36,"Iy":39835,"Iz":39835,"Zely":2276.3,"Zelz":2276.3,"Sy":2679.4,"Sz":2679.4,"ry":13.79,"rz":13.79,"J":59616,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 400x400x10","fam":"SHS","type":"RHS","h":400,"b":400,"t":10,"tw":10,"tf":10,"r":15,"A":154.28,"Iy":39572,"Iz":39572,"Zely":1978.6,"Zelz":1978.6,"Sy":2282,"Sz":2282,"ry":16.02,"rz":16.02,"J":59319,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 400x400x12.5","fam":"SHS","type":"RHS","h":400,"b":400,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":191.07,"Iy":48538,"Iz":48538,"Zely":2426.9,"Zelz":2426.9,"Sy":2816.4,"Sz":2816.4,"ry":15.94,"rz":15.94,"J":72732,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"SHS 400x400x16","fam":"SHS","type":"RHS","h":400,"b":400,"t":16,"tw":16,"tf":16,"r":24,"A":241.36,"Iy":60503,"Iz":60503,"Zely":3025.1,"Zelz":3025.1,"Sy":3541,"Sz":3541,"ry":15.83,"rz":15.83,"J":90597,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 50x30x3.2","fam":"RHS","type":"RHS","h":50,"b":30,"t":3.2,"tw":3.2,"tf":3.2,"r":4.8,"A":4.53,"Iy":15,"Iz":6,"Zely":6,"Zelz":4.3,"Sy":7.5,"Sz":5.2,"ry":1.82,"rz":1.19,"J":14,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 50x30x4","fam":"RHS","type":"RHS","h":50,"b":30,"t":4,"tw":4,"tf":4,"r":6,"A":5.49,"Iy":18,"Iz":8,"Zely":7.1,"Zelz":5,"Sy":9,"Sz":6.2,"ry":1.79,"rz":1.17,"J":16,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 50x30x5","fam":"RHS","type":"RHS","h":50,"b":30,"t":5,"tw":5,"tf":5,"r":7.5,"A":6.57,"Iy":21,"Iz":9,"Zely":8.2,"Zelz":5.7,"Sy":10.8,"Sz":7.3,"ry":1.77,"rz":1.14,"J":18,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 60x40x3.2","fam":"RHS","type":"RHS","h":60,"b":40,"t":3.2,"tw":3.2,"tf":3.2,"r":4.8,"A":5.81,"Iy":29,"Iz":15,"Zely":9.6,"Zelz":7.5,"Sy":11.9,"Sz":8.9,"ry":2.23,"rz":1.61,"J":30,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 60x40x4","fam":"RHS","type":"RHS","h":60,"b":40,"t":4,"tw":4,"tf":4,"r":6,"A":7.09,"Iy":35,"Iz":18,"Zely":11.5,"Zelz":8.9,"Sy":14.4,"Sz":10.7,"ry":2.21,"rz":1.59,"J":35,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 60x40x5","fam":"RHS","type":"RHS","h":60,"b":40,"t":5,"tw":5,"tf":5,"r":7.5,"A":8.57,"Iy":41,"Iz":21,"Zely":13.6,"Zelz":10.4,"Sy":17.3,"Sz":12.8,"ry":2.18,"rz":1.56,"J":41,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 80x40x3.2","fam":"RHS","type":"RHS","h":80,"b":40,"t":3.2,"tw":3.2,"tf":3.2,"r":4.8,"A":7.09,"Iy":59,"Iz":19,"Zely":14.8,"Zelz":9.7,"Sy":18.5,"Sz":11.2,"ry":2.88,"rz":1.65,"J":45,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 80x40x4","fam":"RHS","type":"RHS","h":80,"b":40,"t":4,"tw":4,"tf":4,"r":6,"A":8.69,"Iy":71,"Iz":23,"Zely":17.8,"Zelz":11.5,"Sy":22.5,"Sz":13.6,"ry":2.86,"rz":1.63,"J":53,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 80x40x5","fam":"RHS","type":"RHS","h":80,"b":40,"t":5,"tw":5,"tf":5,"r":7.5,"A":10.57,"Iy":85,"Iz":27,"Zely":21.2,"Zelz":13.5,"Sy":27.3,"Sz":16.3,"ry":2.83,"rz":1.6,"J":63,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 90x50x3.6","fam":"RHS","type":"RHS","h":90,"b":50,"t":3.6,"tw":3.6,"tf":3.6,"r":5.4,"A":9.34,"Iy":101,"Iz":40,"Zely":22.5,"Zelz":15.9,"Sy":27.9,"Sz":18.3,"ry":3.29,"rz":2.06,"J":87,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 90x50x5","fam":"RHS","type":"RHS","h":90,"b":50,"t":5,"tw":5,"tf":5,"r":7.5,"A":12.57,"Iy":133,"Iz":51,"Zely":29.6,"Zelz":20.4,"Sy":37.3,"Sz":24.3,"ry":3.25,"rz":2.02,"J":113,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 100x50x3.2","fam":"RHS","type":"RHS","h":100,"b":50,"t":3.2,"tw":3.2,"tf":3.2,"r":4.8,"A":9.01,"Iy":119,"Iz":40,"Zely":23.7,"Zelz":15.8,"Sy":29.5,"Sz":18,"ry":3.63,"rz":2.09,"J":91,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 100x50x4","fam":"RHS","type":"RHS","h":100,"b":50,"t":4,"tw":4,"tf":4,"r":6,"A":11.09,"Iy":144,"Iz":47,"Zely":28.8,"Zelz":18.9,"Sy":36.1,"Sz":21.9,"ry":3.61,"rz":2.07,"J":110,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 100x50x5","fam":"RHS","type":"RHS","h":100,"b":50,"t":5,"tw":5,"tf":5,"r":7.5,"A":13.57,"Iy":174,"Iz":56,"Zely":34.7,"Zelz":22.5,"Sy":44,"Sz":26.5,"ry":3.58,"rz":2.03,"J":131,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 100x50x6.3","fam":"RHS","type":"RHS","h":100,"b":50,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":16.63,"Iy":209,"Iz":66,"Zely":41.7,"Zelz":26.4,"Sy":53.6,"Sz":31.9,"ry":3.54,"rz":1.99,"J":154,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 100x60x3.6","fam":"RHS","type":"RHS","h":100,"b":60,"t":3.6,"tw":3.6,"tf":3.6,"r":5.4,"A":10.78,"Iy":148,"Iz":66,"Zely":29.7,"Zelz":22.1,"Sy":36.3,"Sz":25.3,"ry":3.71,"rz":2.48,"J":139,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 100x60x5","fam":"RHS","type":"RHS","h":100,"b":60,"t":5,"tw":5,"tf":5,"r":7.5,"A":14.57,"Iy":196,"Iz":86,"Zely":39.3,"Zelz":28.8,"Sy":48.8,"Sz":33.8,"ry":3.67,"rz":2.43,"J":182,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 100x60x6.3","fam":"RHS","type":"RHS","h":100,"b":60,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":17.89,"Iy":236,"Iz":102,"Zely":47.3,"Zelz":34.1,"Sy":59.5,"Sz":40.9,"ry":3.63,"rz":2.39,"J":216,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 100x60x8","fam":"RHS","type":"RHS","h":100,"b":60,"t":8,"tw":8,"tf":8,"r":12,"A":21.94,"Iy":283,"Iz":120,"Zely":56.5,"Zelz":40.1,"Sy":72.4,"Sz":49.3,"ry":3.59,"rz":2.34,"J":254,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 120x60x3.6","fam":"RHS","type":"RHS","h":120,"b":60,"t":3.6,"tw":3.6,"tf":3.6,"r":5.4,"A":12.22,"Iy":232,"Iz":78,"Zely":38.7,"Zelz":25.9,"Sy":48,"Sz":29.4,"ry":4.36,"rz":2.52,"J":180,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 120x60x5","fam":"RHS","type":"RHS","h":120,"b":60,"t":5,"tw":5,"tf":5,"r":7.5,"A":16.57,"Iy":309,"Iz":101,"Zely":51.6,"Zelz":33.8,"Sy":64.8,"Sz":39.3,"ry":4.32,"rz":2.47,"J":235,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 120x60x6.3","fam":"RHS","type":"RHS","h":120,"b":60,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":20.41,"Iy":375,"Iz":121,"Zely":62.4,"Zelz":40.2,"Sy":79.3,"Sz":47.7,"ry":4.28,"rz":2.43,"J":281,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 120x60x8","fam":"RHS","type":"RHS","h":120,"b":60,"t":8,"tw":8,"tf":8,"r":12,"A":25.14,"Iy":452,"Iz":142,"Zely":75.3,"Zelz":47.4,"Sy":97,"Sz":57.7,"ry":4.24,"rz":2.38,"J":331,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 120x80x5","fam":"RHS","type":"RHS","h":120,"b":80,"t":5,"tw":5,"tf":5,"r":7.5,"A":18.57,"Iy":376,"Iz":198,"Zely":62.6,"Zelz":49.4,"Sy":76.3,"Sz":57.3,"ry":4.5,"rz":3.26,"J":392,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 120x80x6.3","fam":"RHS","type":"RHS","h":120,"b":80,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":22.93,"Iy":456,"Iz":238,"Zely":76,"Zelz":59.5,"Sy":93.6,"Sz":70,"ry":4.46,"rz":3.22,"J":472,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 120x80x8","fam":"RHS","type":"RHS","h":120,"b":80,"t":8,"tw":8,"tf":8,"r":12,"A":28.34,"Iy":552,"Iz":285,"Zely":92,"Zelz":71.2,"Sy":114.9,"Sz":85.5,"ry":4.41,"rz":3.17,"J":565,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 150x100x5","fam":"RHS","type":"RHS","h":150,"b":100,"t":5,"tw":5,"tf":5,"r":7.5,"A":23.57,"Iy":755,"Iz":400,"Zely":100.6,"Zelz":79.9,"Sy":121.5,"Sz":91.5,"ry":5.66,"rz":4.12,"J":791,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 150x100x6.3","fam":"RHS","type":"RHS","h":150,"b":100,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":29.23,"Iy":923,"Iz":486,"Zely":123.1,"Zelz":97.1,"Sy":150,"Sz":112.6,"ry":5.62,"rz":4.08,"J":962,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 150x100x8","fam":"RHS","type":"RHS","h":150,"b":100,"t":8,"tw":8,"tf":8,"r":12,"A":36.34,"Iy":1128,"Iz":588,"Zely":150.4,"Zelz":117.6,"Sy":185.4,"Sz":138.6,"ry":5.57,"rz":4.02,"J":1167,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 150x100x10","fam":"RHS","type":"RHS","h":150,"b":100,"t":10,"tw":10,"tf":10,"r":15,"A":44.28,"Iy":1348,"Iz":695,"Zely":179.7,"Zelz":139.1,"Sy":224.5,"Sz":167,"ry":5.52,"rz":3.96,"J":1381,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 150x100x12.5","fam":"RHS","type":"RHS","h":150,"b":100,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":53.57,"Iy":1592,"Iz":811,"Zely":212.2,"Zelz":162.1,"Sy":269.5,"Sz":199.2,"ry":5.45,"rz":3.89,"J":1608,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 160x80x5","fam":"RHS","type":"RHS","h":160,"b":80,"t":5,"tw":5,"tf":5,"r":7.5,"A":22.57,"Iy":762,"Iz":254,"Zely":95.2,"Zelz":63.5,"Sy":118.3,"Sz":72.3,"ry":5.81,"rz":3.35,"J":588,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 160x80x6.3","fam":"RHS","type":"RHS","h":160,"b":80,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":27.97,"Iy":932,"Iz":307,"Zely":116.5,"Zelz":76.6,"Sy":145.9,"Sz":88.6,"ry":5.77,"rz":3.31,"J":711,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 160x80x8","fam":"RHS","type":"RHS","h":160,"b":80,"t":8,"tw":8,"tf":8,"r":12,"A":34.74,"Iy":1138,"Iz":368,"Zely":142.3,"Zelz":92,"Sy":180.2,"Sz":108.5,"ry":5.72,"rz":3.26,"J":856,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x100x5","fam":"RHS","type":"RHS","h":200,"b":100,"t":5,"tw":5,"tf":5,"r":7.5,"A":28.57,"Iy":1522,"Iz":512,"Zely":152.2,"Zelz":102.5,"Sy":187.8,"Sz":115.3,"ry":7.3,"rz":4.23,"J":1183,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x100x6.3","fam":"RHS","type":"RHS","h":200,"b":100,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":35.53,"Iy":1873,"Iz":624,"Zely":187.3,"Zelz":124.8,"Sy":232.7,"Sz":142.1,"ry":7.26,"rz":4.19,"J":1444,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x100x8","fam":"RHS","type":"RHS","h":200,"b":100,"t":8,"tw":8,"tf":8,"r":12,"A":44.34,"Iy":2306,"Iz":758,"Zely":230.6,"Zelz":151.6,"Sy":289,"Sz":175.4,"ry":7.21,"rz":4.13,"J":1758,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x100x10","fam":"RHS","type":"RHS","h":200,"b":100,"t":10,"tw":10,"tf":10,"r":15,"A":54.28,"Iy":2779,"Iz":899,"Zely":277.9,"Zelz":179.7,"Sy":352,"Sz":212,"ry":7.15,"rz":4.07,"J":2089,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x100x12.5","fam":"RHS","type":"RHS","h":200,"b":100,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":66.07,"Iy":3317,"Iz":1051,"Zely":331.7,"Zelz":210.3,"Sy":425.8,"Sz":253.9,"ry":7.09,"rz":3.99,"J":2447,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x120x6.3","fam":"RHS","type":"RHS","h":200,"b":120,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":38.05,"Iy":2110,"Iz":945,"Zely":211,"Zelz":157.6,"Sy":257.1,"Sz":179.6,"ry":7.45,"rz":4.98,"J":1988,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x120x8","fam":"RHS","type":"RHS","h":200,"b":120,"t":8,"tw":8,"tf":8,"r":12,"A":47.54,"Iy":2601,"Iz":1155,"Zely":260.1,"Zelz":192.5,"Sy":319.7,"Sz":222.5,"ry":7.4,"rz":4.93,"J":2434,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x120x10","fam":"RHS","type":"RHS","h":200,"b":120,"t":10,"tw":10,"tf":10,"r":15,"A":58.28,"Iy":3140,"Iz":1380,"Zely":314,"Zelz":230,"Sy":390,"Sz":270,"ry":7.34,"rz":4.87,"J":2912,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 200x120x12.5","fam":"RHS","type":"RHS","h":200,"b":120,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":71.07,"Iy":3757,"Iz":1630,"Zely":375.7,"Zelz":271.6,"Sy":472.7,"Sz":325.2,"ry":7.27,"rz":4.79,"J":3443,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 250x150x6.3","fam":"RHS","type":"RHS","h":250,"b":150,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":48.13,"Iy":4212,"Iz":1900,"Zely":336.9,"Zelz":253.3,"Sy":407.8,"Sz":285.8,"ry":9.35,"rz":6.28,"J":3989,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 250x150x8","fam":"RHS","type":"RHS","h":250,"b":150,"t":8,"tw":8,"tf":8,"r":12,"A":60.34,"Iy":5224,"Iz":2339,"Zely":417.9,"Zelz":311.9,"Sy":509.4,"Sz":355.8,"ry":9.3,"rz":6.23,"J":4920,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 250x150x10","fam":"RHS","type":"RHS","h":250,"b":150,"t":10,"tw":10,"tf":10,"r":15,"A":74.28,"Iy":6350,"Iz":2820,"Zely":508,"Zelz":376,"Sy":624.5,"Sz":434.5,"ry":9.25,"rz":6.16,"J":5942,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 250x150x12.5","fam":"RHS","type":"RHS","h":250,"b":150,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":91.07,"Iy":7666,"Iz":3369,"Zely":613.3,"Zelz":449.2,"Sy":761.7,"Sz":527.3,"ry":9.17,"rz":6.08,"J":7110,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 250x150x16","fam":"RHS","type":"RHS","h":250,"b":150,"t":16,"tw":16,"tf":16,"r":24,"A":113.36,"Iy":9344,"Iz":4046,"Zely":747.5,"Zelz":539.5,"Sy":941.8,"Sz":647.4,"ry":9.08,"rz":5.97,"J":8550,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 300x200x6.3","fam":"RHS","type":"RHS","h":300,"b":200,"t":6.3,"tw":6.3,"tf":6.3,"r":9.4,"A":60.73,"Iy":7928,"Iz":4238,"Zely":528.5,"Zelz":423.8,"Sy":630.2,"Sz":476.7,"ry":11.43,"rz":8.35,"J":8367,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 300x200x8","fam":"RHS","type":"RHS","h":300,"b":200,"t":8,"tw":8,"tf":8,"r":12,"A":76.34,"Iy":9877,"Iz":5257,"Zely":658.5,"Zelz":525.7,"Sy":789.8,"Sz":596.2,"ry":11.37,"rz":8.3,"J":10391,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 300x200x10","fam":"RHS","type":"RHS","h":300,"b":200,"t":10,"tw":10,"tf":10,"r":15,"A":94.28,"Iy":12072,"Iz":6392,"Zely":804.8,"Zelz":639.2,"Sy":972,"Sz":732,"ry":11.32,"rz":8.23,"J":12650,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 300x200x12.5","fam":"RHS","type":"RHS","h":300,"b":200,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":116.07,"Iy":14671,"Iz":7718,"Zely":978.1,"Zelz":771.8,"Sy":1191.4,"Sz":894.5,"ry":11.24,"rz":8.15,"J":15294,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 300x200x16","fam":"RHS","type":"RHS","h":300,"b":200,"t":16,"tw":16,"tf":16,"r":24,"A":145.36,"Iy":18052,"Iz":9410,"Zely":1203.4,"Zelz":941,"Sy":1483.4,"Sz":1109,"ry":11.14,"rz":8.05,"J":18671,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 400x200x8","fam":"RHS","type":"RHS","h":400,"b":200,"t":8,"tw":8,"tf":8,"r":12,"A":92.34,"Iy":19845,"Iz":6732,"Zely":992.2,"Zelz":673.2,"Sy":1217,"Sz":749.8,"ry":14.66,"rz":8.54,"J":15520,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 400x200x10","fam":"RHS","type":"RHS","h":400,"b":200,"t":10,"tw":10,"tf":10,"r":15,"A":114.28,"Iy":24359,"Iz":8199,"Zely":1217.9,"Zelz":819.9,"Sy":1502,"Sz":922,"ry":14.6,"rz":8.47,"J":18934,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 400x200x12.5","fam":"RHS","type":"RHS","h":400,"b":200,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":141.07,"Iy":29762,"Iz":9919,"Zely":1488.1,"Zelz":991.9,"Sy":1847.7,"Sz":1128.9,"ry":14.53,"rz":8.39,"J":22952,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 400x200x16","fam":"RHS","type":"RHS","h":400,"b":200,"t":16,"tw":16,"tf":16,"r":24,"A":177.36,"Iy":36896,"Iz":12126,"Zely":1844.8,"Zelz":1212.6,"Sy":2312.2,"Sz":1403.4,"ry":14.42,"rz":8.27,"J":28125,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 450x250x8","fam":"RHS","type":"RHS","h":450,"b":250,"t":8,"tw":8,"tf":8,"r":12,"A":108.34,"Iy":30438,"Iz":12254,"Zely":1352.8,"Zelz":980.3,"Sy":1637.4,"Sz":1090.2,"ry":16.76,"rz":10.64,"J":26763,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 450x250x10","fam":"RHS","type":"RHS","h":450,"b":250,"t":10,"tw":10,"tf":10,"r":15,"A":134.28,"Iy":37455,"Iz":14995,"Zely":1664.7,"Zelz":1199.6,"Sy":2024.5,"Sz":1344.5,"ry":16.7,"rz":10.57,"J":32798,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 450x250x12.5","fam":"RHS","type":"RHS","h":450,"b":250,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":166.07,"Iy":45908,"Iz":18252,"Zely":2040.4,"Zelz":1460.2,"Sy":2496.1,"Sz":1652.3,"ry":16.63,"rz":10.48,"J":39987,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 450x250x16","fam":"RHS","type":"RHS","h":450,"b":250,"t":16,"tw":16,"tf":16,"r":24,"A":209.36,"Iy":57164,"Iz":22506,"Zely":2540.6,"Zelz":1800.4,"Sy":3133.8,"Sz":2065,"ry":16.52,"rz":10.37,"J":49407,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 500x300x10","fam":"RHS","type":"RHS","h":500,"b":300,"t":10,"tw":10,"tf":10,"r":15,"A":154.28,"Iy":54452,"Iz":24692,"Zely":2178.1,"Zelz":1646.1,"Sy":2622,"Sz":1842,"ry":18.79,"rz":12.65,"J":51775,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 500x300x12.5","fam":"RHS","type":"RHS","h":500,"b":300,"t":12.5,"tw":12.5,"tf":12.5,"r":18.8,"A":191.07,"Iy":66898,"Iz":30179,"Zely":2675.9,"Zelz":2011.9,"Sy":3238.3,"Sz":2269.5,"ry":18.71,"rz":12.57,"J":63367,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"RHS 500x300x16","fam":"RHS","type":"RHS","h":500,"b":300,"t":16,"tw":16,"tf":16,"r":24,"A":241.36,"Iy":83576,"Iz":37430,"Zely":3343,"Zelz":2495.3,"Sy":4075.4,"Sz":2846.6,"ry":18.61,"rz":12.45,"J":78726,"Iw":0,"u":0.9,"x":70,"computed":true},{"name":"EA 50x50x6","fam":"EA","type":"angle","h":50,"b":50,"tw":6,"tf":6,"A":5.64,"Iy":12.9,"Iz":12.9,"Zely":3.6,"Zelz":0,"Sy":0,"Sz":0,"ry":1.515,"rz":0.99,"J":0.68,"Iw":0,"u":0.9,"x":8.333333333333334,"computed":true},{"name":"EA 50x50x5","fam":"EA","type":"angle","h":50,"b":50,"tw":5,"tf":5,"A":4.75,"Iy":10.9,"Iz":10.9,"Zely":3.1,"Zelz":0,"Sy":0,"Sz":0,"ry":1.515,"rz":0.99,"J":0.4,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 60x60x6","fam":"EA","type":"angle","h":60,"b":60,"tw":6,"tf":6,"A":6.84,"Iy":22.6,"Iz":22.6,"Zely":5.3,"Zelz":0,"Sy":0,"Sz":0,"ry":1.818,"rz":1.188,"J":0.82,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 70x70x6","fam":"EA","type":"angle","h":70,"b":70,"tw":6,"tf":6,"A":8.04,"Iy":36.2,"Iz":36.2,"Zely":7.3,"Zelz":0,"Sy":0,"Sz":0,"ry":2.121,"rz":1.386,"J":0.96,"Iw":0,"u":0.9,"x":11.666666666666666,"computed":true},{"name":"EA 75x75x8","fam":"EA","type":"angle","h":75,"b":75,"tw":8,"tf":8,"A":11.36,"Iy":58.6,"Iz":58.6,"Zely":11,"Zelz":0,"Sy":0,"Sz":0,"ry":2.272,"rz":1.485,"J":2.42,"Iw":0,"u":0.9,"x":9.375,"computed":true},{"name":"EA 80x80x8","fam":"EA","type":"angle","h":80,"b":80,"tw":8,"tf":8,"A":12.16,"Iy":71.4,"Iz":71.4,"Zely":12.6,"Zelz":0,"Sy":0,"Sz":0,"ry":2.424,"rz":1.584,"J":2.59,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 90x90x8","fam":"EA","type":"angle","h":90,"b":90,"tw":8,"tf":8,"A":13.76,"Iy":102.3,"Iz":102.3,"Zely":16,"Zelz":0,"Sy":0,"Sz":0,"ry":2.727,"rz":1.782,"J":2.94,"Iw":0,"u":0.9,"x":11.25,"computed":true},{"name":"EA 100x100x8","fam":"EA","type":"angle","h":100,"b":100,"tw":8,"tf":8,"A":15.36,"Iy":141,"Iz":141,"Zely":19.9,"Zelz":0,"Sy":0,"Sz":0,"ry":3.03,"rz":1.98,"J":3.28,"Iw":0,"u":0.9,"x":12.5,"computed":true},{"name":"EA 100x100x10","fam":"EA","type":"angle","h":100,"b":100,"tw":10,"tf":10,"A":19,"Iy":174.4,"Iz":174.4,"Zely":24.6,"Zelz":0,"Sy":0,"Sz":0,"ry":3.03,"rz":1.98,"J":6.33,"Iw":0,"u":0.9,"x":10,"computed":true},{"name":"EA 120x120x10","fam":"EA","type":"angle","h":120,"b":120,"tw":10,"tf":10,"A":23,"Iy":304.1,"Iz":304.1,"Zely":35.7,"Zelz":0,"Sy":0,"Sz":0,"ry":3.636,"rz":2.376,"J":7.67,"Iw":0,"u":0.9,"x":12,"computed":true},{"name":"EA 150x150x12","fam":"EA","type":"angle","h":150,"b":150,"tw":12,"tf":12,"A":34.56,"Iy":713.9,"Iz":713.9,"Zely":67,"Zelz":0,"Sy":0,"Sz":0,"ry":4.545,"rz":2.97,"J":16.59,"Iw":0,"u":0.9,"x":12.5,"computed":true}];
 /* ===================== KHAVS UI v2 ===================== */
 const $=id=>document.getElementById(id);
 const f0=x=>Number(x).toFixed(0), f1=x=>Number(x).toFixed(1), f2=x=>Number(x).toFixed(2);
@@ -1637,8 +1808,9 @@ function defaultState(){return{
   bpB:320, bpD:320, bpT:25, fck:30, nLine:2, eBolt:45, mBolt:55, hef:375, anchorType:'plate',
   bN1:400, bM1:20, bV1:30, bN2:-50, bM2:15, bV2:20,
   mpB:200, mpT:20, gaugeG:100, exRow:40, p1Row:60, pitchRow:80, nBelow:1,
+  mcNBolt:'2', haunch:0, haunchAuto:false, clearBolt:45,
   mcM:90, mcV:80, mcN:0,
-  curveY:'a', curveZ:'b', gM0:1.0, gM1:1.0, mLT:1.0, forceCls:0, xferNote:''
+  curveY:'a', curveZ:'b', gM0:1.0, gM1:1.0, mLT:1.0, forceCls:0, xferNote:'', bendAxis:'major'
 };}
 let STATE=defaultState();
 
@@ -1702,6 +1874,8 @@ function initInputs(){
       STATE.libFam='UC'; STATE.libSec='UC 203x203x46'; }
     else if(STATE.mode==='base' && STATE.libFam==='UB'){
       STATE.libFam='UC'; STATE.libSec='UC 203x203x46'; }
+    if(STATE.mode==='conn' && !['UB','UC','IPE','HEA','HEB'].includes(STATE.libFam)){
+      STATE.libFam='UB'; STATE.libSec='UB 305x165x40'; }
     snapshot(); syncInputs(); render();
   });
   $('segCode').querySelectorAll('button').forEach(b=>b.onclick=()=>{
@@ -1720,22 +1894,37 @@ function initInputs(){
     e.addEventListener('input',()=>{ STATE[key]=num?(parseFloat(e.value)||0):e.value; snapshotDebounced(); render(); });
     e.addEventListener('change',()=>{ snapshot(); }); };
   ['grade','custShape','coldShape','libFam','libSec','lib2Fam','lib2Sec','curveY','curveZ','gBase','windUnits',
-   'boltSize','boltGrade','anchorType'].forEach(k=>bind(k,k,false));
+   'boltSize','boltGrade','anchorType','mcNBolt','bendAxis'].forEach(k=>bind(k,k,false));
   ['ys','ldN','ldV','ldMx','ldMy','LEy','LEz','LLTd',
    'gSpan','gHeight','gRise','gDepth','gPanel','spacing','gAreaL','gUDL','qAreaL','qUDL','xUDL','PGt','PQt',
    'gP','qP','w1','w2','wcol','wr1','wr2','ww','wl',
    'LLT','LLTbot','Kin','Kout','chordRestr','botRestr','limLive','limTotal','limSway',
-   'weldS','bpB','bpD','bpT','fck','nLine','eBolt','mBolt','hef','bN1','bM1','bV1','bN2','bM2','bV2',
-   'mpB','mpT','gaugeG','exRow','p1Row','pitchRow','nBelow','mcM','mcV','mcN',
+   'weldS','bpB','bpD','bpT','fck','nLine','eBolt','clearBolt','mBolt','hef','bN1','bM1','bV1','bN2','bM2','bV2',
+   'mpB','mpT','gaugeG','exRow','p1Row','pitchRow','nBelow','haunch','mcM','mcV','mcN',
    'gM0','gM1','mLT','forceCls'].forEach(k=>bind(k,k,true));
   $('selfWt').addEventListener('change',()=>{ STATE.selfWt=$('selfWt').checked; snapshot(); render(); });
+  $('bendAxis').addEventListener('input',()=>{ suppress=true; syncInputs(); suppress=false; });
+  $('haunchAuto').addEventListener('change',()=>{
+    STATE.haunchAuto=$('haunchAuto').checked;
+    if(STATE.haunchAuto){ const s=resolveSection(); if(s) STATE.haunch=Math.round(s.h); }
+    snapshot(); syncInputs(); render();
+  });
+  $('sbLive').addEventListener('change',()=>{ CLOUD.live=$('sbLive').checked; localStorage.setItem('khavs_sb_live',CLOUD.live?'1':''); });
+  $('btnAutoBase').onclick=()=>{
+    const s=resolveSection(); if(!s)return;
+    const sug=suggestBasePlate(s, STATE.boltSize, STATE.eBolt, STATE.clearBolt);
+    STATE.bpB=sug.B; STATE.bpD=sug.D; STATE.bpT=Math.max(STATE.bpT,sug.tp);
+    STATE.eBolt=sug.edge; STATE.clearBolt=sug.clear;
+    snapshot(); syncInputs(); render();
+  };
+  $('btnCloud').onclick=cloudMenu;
+  $('syncPill').onclick=cloudMenu;
   $('libFam').addEventListener('change',()=>{ populateLibSec(); STATE.libSec=$('libSec').value; snapshot(); render(); });
   $('lib2Fam').addEventListener('change',()=>{ populateLib2Sec(); STATE.lib2Sec=$('lib2Sec').value; snapshot(); render(); });
   $('custShape').addEventListener('change',()=>{ renderCustDims(); snapshot(); render(); });
   $('coldShape').addEventListener('change',()=>{ renderColdDims(); snapshot(); render(); });
   $('btnUndo').onclick=undo; $('btnRedo').onclick=redo;
   $('btnPrint').onclick=()=>window.print();
-  $('btnSave').onclick=saveDesign; $('btnLoad').onclick=loadDesign;
   document.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
     else if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==='y'||(e.shiftKey&&e.key.toLowerCase()==='z'))){e.preventDefault();redo();}
@@ -1836,6 +2025,7 @@ function syncInputs(){
   // geometry
   show('grpGeom',!isConn&&m!=='direct');
   show('fSpan',['ss','ff','cant','portal','truss'].includes(m));
+  show('fAxis',['ss','ff','cant','column'].includes(m));
   if($('fSpan')) $('fSpan').querySelector('label').textContent=(m==='cant')?'Cantilever length L (m)':'Span L (m)';
   show('fHeight',['column','portal'].includes(m));
   show('fRise',m==='portal');
@@ -1863,7 +2053,7 @@ function syncInputs(){
   show('grpMember',!isConn&&m!=='direct'||m==='direct');
   show('grpMember',!isConn);
   show('rowLE',m==='direct','grid');
-  show('rowLLT',['ss','ff','cant','portal'].includes(m),'grid');
+  show('rowLLT',m==='portal'||(['ss','ff','cant'].includes(m)&&STATE.bendAxis!=='minor'),'grid');
   show('rowK',['column','portal'].includes(m),'grid');
   show('rowChord',m==='truss','grid');
   if($('lltLabel')&&m==='cant') $('lltLabel').textContent='LTB restraint spacing — top flange (m)';
@@ -1892,12 +2082,15 @@ function syncInputs(){
   ['gSpan','gHeight','gRise','gDepth','gPanel','spacing','gAreaL','gUDL','qAreaL','qUDL','xUDL','PGt','PQt',
    'gP','qP','w1','w2','wcol','wr1','wr2','ww','wl','LLT','LLTbot','Kin','Kout','chordRestr','botRestr',
    'limLive','limTotal','limSway','ldN','ldV','ldMx','ldMy','LEy','LEz','LLTd','gM0','gM1','mLT','forceCls',
-   'weldS','bpB','bpD','bpT','fck','nLine','eBolt','mBolt','hef','bN1','bM1','bV1','bN2','bM2','bV2',
-   'mpB','mpT','gaugeG','exRow','p1Row','pitchRow','nBelow','mcM','mcV','mcN']
+   'weldS','bpB','bpD','bpT','fck','nLine','eBolt','clearBolt','mBolt','hef','bN1','bM1','bV1','bN2','bM2','bV2',
+   'mpB','mpT','gaugeG','exRow','p1Row','pitchRow','nBelow','haunch','mcM','mcV','mcN']
    .forEach(k=>{ if($(k)) $(k).value=STATE[k]; });
   $('gBase').value=STATE.gBase; $('windUnits').value=STATE.windUnits;
-  ['boltSize','boltGrade','anchorType'].forEach(k=>{ if($(k)) $(k).value=STATE[k]; });
+  ['boltSize','boltGrade','anchorType','mcNBolt','bendAxis'].forEach(k=>{ if($(k)) $(k).value=STATE[k]; });
+  if($('haunchAuto')) $('haunchAuto').checked=!!STATE.haunchAuto;
+  if($('haunch')) $('haunch').disabled=!!STATE.haunchAuto;
   $('selfWt').checked=!!STATE.selfWt;
+  if($('sbLive')) $('sbLive').checked=!!CLOUD.live;
   updateHistBtns();
 }
 
@@ -1943,19 +2136,27 @@ function engineOpts(sec){
     mLT:STATE.mLT,C1:STATE.mLT,ltCurve:(sec.h/sec.b<=2)?'b':'c',
     forceCls:STATE.forceCls>0?STATE.forceCls:0};
 }
-function runEngine(sec,F,member){ // F={N,V,M} kN/kNm ; member {LEy,LEz,LLT} m
-  const loads={N:F.N||0,Vy:F.V||0,Mx:F.M||0,My:0};
-  if(STATE.code==='EC3') return checkEC(sec,STATE.grade,loads,member,engineOpts(sec));
-  return checkBS(sec,STATE.grade,loads,member,engineOpts(sec));
+function runEngine(sec,F,member,axis){ // F={N,V,M,My} kN/kNm ; member {LEy,LEz,LLT} m
+  const minor=(axis==='minor');
+  const loads=minor
+    ? {N:F.N||0,Vy:F.V||0,Mx:0,My:F.M||0}
+    : {N:F.N||0,Vy:F.V||0,Mx:F.M||0,My:F.My||0};
+  const opts={...engineOpts(sec), axis:minor?'minor':'major'};
+  if(STATE.code==='EC3') return checkEC(sec,STATE.grade,loads,member,opts);
+  if(STATE.code==='BS5950-5') return checkCF(sec,STATE.ys,loads,member,opts);
+  return checkBS(sec,STATE.grade,loads,member,opts);
 }
 /* worst of sagging / hogging checks for one combo's force set */
-function checkMemberCombo(sec,F,lens){ // F={Msag,Mhog,V,Nc,Nt}
+function checkMemberCombo(sec,F,lens,axis){ // F={Msag,Mhog,V,Nc,Nt}
   const N=(F.Nc>=F.Nt)?F.Nc:-(F.Nt);
+  const minor=(axis==='minor');
   const cands=[];
   if(F.Msag>0.001||((F.Mhog||0)<=0.001))
-    cands.push({tag:'sagging',res:runEngine(sec,{N,V:F.V,M:F.Msag||0},{LEy:lens.LEy,LEz:lens.LEz,LLT:lens.LLTtop})});
+    cands.push({tag:minor?'sagging (minor axis)':'sagging',
+      res:runEngine(sec,{N,V:F.V,M:F.Msag||0},{LEy:lens.LEy,LEz:lens.LEz,LLT:minor?0:lens.LLTtop},axis)});
   if((F.Mhog||0)>0.001)
-    cands.push({tag:'hogging / reversal',res:runEngine(sec,{N,V:F.V,M:F.Mhog},{LEy:lens.LEy,LEz:lens.LEz,LLT:lens.LLTbot})});
+    cands.push({tag:minor?'hogging (minor axis)':'hogging / reversal',
+      res:runEngine(sec,{N,V:F.V,M:F.Mhog},{LEy:lens.LEy,LEz:lens.LEz,LLT:minor?0:lens.LLTbot},axis)});
   let best=cands[0];
   for(const c of cands) if(c.res.govern.u>best.res.govern.u) best=c;
   return best;
@@ -2029,7 +2230,8 @@ function propsCardHTML(sec,sec2,sec2label){
     <div class="pname">${sec.name}${sec.computed?' (props from nominal dims)':''}</div>
     <div><span>A</span> ${f2(sec.A)} cm²</div><div><span>Iyy</span> ${f0(sec.Iy)} cm⁴</div>
     <div><span>Izz</span> ${f1(sec.Iz)} cm⁴</div><div><span>Zel,y</span> ${f1(sec.Zely)} cm³</div>
-    <div><span>Spl,y</span> ${f1(sec.Sy||0)} cm³</div><div><span>ry</span> ${f2(sec.ry)} cm</div>
+    <div><span>Spl,y</span> ${f1(sec.Sy||0)} cm³</div><div><span>Zel,z</span> ${f1(sec.Zelz||0)} cm³</div>
+    <div><span>Spl,z</span> ${f1(sec.Sz||0)} cm³</div><div><span>ry</span> ${f2(sec.ry)} cm</div>
     <div><span>rz</span> ${f2(sec.rz)} cm</div><div><span>J</span> ${f1(sec.J)} cm⁴</div>
     ${sec.u?`<div><span>u</span> ${sec.u}</div>`:''}${sec.x&&sec.x<1e5?`<div><span>x</span> ${f1(sec.x)}</div>`:''}
     ${extra}</div></div>`;
@@ -2278,34 +2480,45 @@ function basePlateSVG(sec,st){
 
 /* moment end-plate elevation */
 function endPlateSVG(sec,st,r){
-  const W=460,H=250,pad=24;
+  const W=460,H=280,pad=24;
+  const haunch=r.haunch||0, nB=r.nB||2;
   const beamH=sec.h, plateExt=st.exRow+20;
-  const totalH=beamH+plateExt+20;
+  const totalH=beamH+haunch+plateExt+24;
   const sc=(H-2*pad)/totalH;
   const cx=W/2, top=pad;
-  const bh=beamH*sc, bw=Math.min(sec.b*sc,120), tf=Math.max(sec.tf*sc,2), tw=Math.max(sec.tw*sc,2);
-  const plateH=(beamH+plateExt)*sc, plateW=Math.max(st.mpB*sc,bw+16), plateT=8;
+  const bh=beamH*sc, bw=Math.min(sec.b*sc,110), tf=Math.max(sec.tf*sc,2), tw=Math.max(sec.tw*sc,2);
+  const hh=haunch*sc;
+  const plateH=(beamH+haunch+plateExt)*sc, plateT=9;
   const py0=top+10;
-  // end plate
-  let g=`<rect x="${cx-plateT/2-2}" y="${py0}" width="${plateT}" height="${plateH}" fill="#5b7a99" stroke="#3a4655"/>`;
-  // beam (to right of plate)
-  const bx0=cx+plateT/2-2, by0=py0+plateExt*sc;
+  // end plate (extends over beam + haunch)
+  let g=`<rect x="${cx-plateT-2}" y="${py0}" width="${plateT}" height="${plateH}" fill="#5b7a99" stroke="#3a4655"/>`;
+  const bx0=cx-2, by0=py0+plateExt*sc;
+  // beam
   g+=`<rect x="${bx0}" y="${by0}" width="${bw}" height="${tf}" fill="#8fa9c2"/>
       <rect x="${bx0}" y="${by0+bh-tf}" width="${bw}" height="${tf}" fill="#8fa9c2"/>
       <rect x="${bx0}" y="${by0+tf}" width="${tw}" height="${bh-2*tf}" fill="#8fa9c2"/>`;
-  // bolt rows (2 bolts each shown as one line at plate)
-  const bottomFlangeY=by0+bh-tf/2;
+  // haunch (triangular cutting below bottom flange, deepening toward the plate)
+  if(hh>0){
+    const hy=by0+bh-tf;
+    g+=`<path d="M ${bx0} ${hy} L ${bx0} ${hy+hh} L ${bx0+bw} ${hy} Z" fill="#7d97b0" stroke="#3a4655" stroke-width="0.6"/>
+        <rect x="${bx0}" y="${hy+hh}" width="${Math.max(bw*0.5,20)}" height="${tf}" fill="#8fa9c2"/>`;
+  }
+  // compression datum
+  const compY = hh>0 ? (by0+bh-tf+hh+tf/2) : (by0+bh-tf/2);
+  // bolt rows (nB bolts → draw as a cluster; show 2 dots to indicate multiple)
   r.rows.forEach((row,i)=>{
-    const ry=bottomFlangeY - row.y*sc;
-    g+=`<circle cx="${cx-plateT/2-2}" cy="${ry}" r="4" fill="none" stroke="#cf4b45" stroke-width="1.6"/>
-        <text x="${cx-plateT/2-12}" y="${ry+3}" font-size="10" fill="#333" text-anchor="end" font-family="monospace">R${i+1}: ${f1(row.F)} kN</text>`;
+    const ry=compY - row.y*sc;
+    const dots = nB>=4 ? [-5,5] : [0];
+    dots.forEach(dx=>g+=`<circle cx="${cx-plateT/2-2+ (nB>=4?0:0)}" cy="${ry}" r="3.6" fill="none" stroke="#cf4b45" stroke-width="1.5"/>`);
+    g+=`<text x="${cx-plateT-8}" y="${ry+3}" font-size="10" fill="#333" text-anchor="end" font-family="monospace">R${i+1}: ${f1(row.F)} kN${nB>=4?' ×4':''}</text>`;
   });
-  // compression bolt pair near bottom flange
-  g+=`<circle cx="${cx-plateT/2-2}" cy="${bottomFlangeY+8}" r="4" fill="none" stroke="#3f9d5a" stroke-width="1.6"/>`;
-  g+=`<text x="${cx+bw/2}" y="${by0+bh+16}" font-size="10.5" fill="#333" text-anchor="middle" font-family="monospace">${sec.name}</text>`;
-  g+=`<text x="${cx-plateT/2-2}" y="${py0-2}" font-size="10.5" fill="#333" text-anchor="middle" font-family="monospace">Ext. plate ${st.mpB}×${st.mpT}</text>`;
+  // compression bolts near compression datum
+  g+=`<circle cx="${cx-plateT/2-2}" cy="${compY+7}" r="3.6" fill="none" stroke="#3f9d5a" stroke-width="1.5"/>`;
+  g+=`<text x="${cx+bw/2}" y="${by0+bh+13}" font-size="10" fill="#333" text-anchor="middle" font-family="monospace">${sec.name}</text>`;
+  if(hh>0) g+=`<text x="${bx0+bw*0.55}" y="${by0+bh+hh}" font-size="9.5" fill="#333" font-family="monospace">haunch ${haunch}</text>`;
+  g+=`<text x="${cx-plateT-2}" y="${py0-3}" font-size="10" fill="#333" text-anchor="middle" font-family="monospace">Plate ${st.mpB}×${Math.round(sec.h+haunch+st.exRow+30)}×${st.mpT}</text>`;
   return `<div class="diagram" style="flex-direction:column;align-items:stretch">
-    <div class="diag-title">End‑plate elevation — bolt rows & lever arms</div>
+    <div class="diag-title">End‑plate elevation — bolt rows, lever arms${haunch>0?' & haunch':''}</div>
     <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg></div>`;
 }
 
@@ -2333,11 +2546,13 @@ function renderBeam(kind){ // kind: 'ss' | 'ff' | 'cant'
   const fixed=(kind==='ff'), cant=(kind==='cant');
   const sec=resolveSection(); if(!sec) return '<div class="empty">Select a section.</div>';
   const L=STATE.gSpan; if(L<=0) return '<div class="empty">Enter a '+(cant?'length':'span')+'.</div>';
+  const minor=(STATE.bendAxis==='minor');
+  const secAn=minor?{...sec,Iy:sec.Iz}:sec;   // analysis stiffness about the loaded axis
   const {g,q,x}=gravityUDLs(sec);
   const w1v=windUDL(STATE.w1), w2v=windUDL(STATE.w2);
   const model=cant
-    ? buildCantilever({L},sec,{g,q,w1:w1v,w2:w2v,x,Pg:STATE.PGt,Pq:STATE.PQt})
-    : buildBeam({L},sec,{g,q,w1:w1v,w2:w2v,x},fixed);
+    ? buildCantilever({L},secAn,{g,q,w1:w1v,w2:w2v,x,Pg:STATE.PGt,Pq:STATE.PQt})
+    : buildBeam({L},secAn,{g,q,w1:w1v,w2:w2v,x},fixed);
   const an=analyseModel(model,STATE.code,codeE(),{hasW1:w1v>0,hasW2:w2v>0,hasX:x>0});
   // cantilever: hogging everywhere → bottom flange in compression → use bottom-flange restraint
   const lens=cant
@@ -2346,7 +2561,7 @@ function renderBeam(kind){ // kind: 'ss' | 'ff' | 'cant'
   const rows=[];
   an.runs.filter(r=>r.combo.type==='ULS').forEach(r=>{
     const F=forcesOf(r.res.members,[0,1]);
-    const chk=checkMemberCombo(sec,F,lens);
+    const chk=checkMemberCombo(sec,F,lens,STATE.bendAxis);
     const f=r.combo.f;
     let w=(f.G||0)*g+(f.Q||0)*q+(f.W1||0)*w1v-(f.W2||0)*w2v+(f.X||0)*x;
     rows.push({run:r,name:r.combo.name,w,F,chk,u:chk.res.govern.u});
@@ -2369,9 +2584,9 @@ function renderBeam(kind){ // kind: 'ss' | 'ff' | 'cant'
   ct+='</table></div>';
   const gauges=gov.chk.res.utils.map(u=>({name:u.name,u:u.u}));
   sls.forEach(s=>gauges.push({name:`Deflection ${s.label}`,u:s.u}));
-  const title=cant?'Cantilever':fixed?'Fixed-end beam':'Simply supported beam';
+  const title=(cant?'Cantilever':fixed?'Fixed-end beam':'Simply supported beam')+(minor?' — MINOR AXIS (z‑z)':'');
   let html=headHTML(`${title} — ${sec.name}`,
-    `L = ${L} m · G = ${f2(g)} kN/m · Q = ${f2(q)} kN/m${w1v?` · W₁ = ${f2(w1v)}`:''}${w2v?` · W₂ = ${f2(w2v)}↑`:''}${tipTxt}`,
+    `L = ${L} m · G = ${f2(g)} kN/m · Q = ${f2(q)} kN/m${w1v?` · W₁ = ${f2(w1v)}`:''}${w2v?` · W₂ = ${f2(w2v)}↑`:''}${tipTxt}${minor?' · deflection & capacity about z‑z (Iz, Mcy)':''}`,
     gov.chk.res.code);
   html+=verdictHTML(uAll,`Governing: ${gov.name} → ${gov.chk.res.govern.name} (${gov.chk.tag})`);
   html+=gaugesHTML(gauges);
@@ -2448,25 +2663,28 @@ function renderConn(){
   if(sec.type!=='I') return '<div class="empty">Moment end‑plate expects an I/H beam section.</div>';
   const tmax=Math.max(sec.tf,sec.tw);
   const py=(STATE.code==='EC3')?fyEC(STATE.grade,tmax):pyBS(STATE.grade,tmax);
+  const haunch=STATE.haunchAuto?Math.round(sec.h):(STATE.haunch||0);
+  const nBolt=parseInt(STATE.mcNBolt)||2;
   const r=momentConnCheck({sec,grade:STATE.grade,py,code:STATE.code,
     bp:STATE.mpB,tp:STATE.mpT,bolt:{size:STATE.boltSize,grade:STATE.boltGrade},
     gauge:STATE.gaugeG,ex:STATE.exRow,p1:STATE.p1Row,pitch:STATE.pitchRow,nBelow:Math.round(STATE.nBelow),
-    weldS:STATE.weldS,loads:{M:STATE.mcM,V:STATE.mcV,N:STATE.mcN}});
+    nBolt,haunch,weldS:STATE.weldS,loads:{M:STATE.mcM,V:STATE.mcV,N:STATE.mcN}});
+  const plateH=Math.round(sec.h+haunch+STATE.exRow+30);
   let html=headHTML(`Moment end‑plate — ${sec.name}`,
-    `Plate ${STATE.mpB}×${STATE.mpT} mm · ${STATE.boltSize} ${STATE.boltGrade} · ${r.rows.length} tension row(s) · M = ${STATE.mcM} kNm`,
+    `Plate ${STATE.mpB}×${plateH}×${STATE.mpT} mm · ${STATE.boltSize} ${STATE.boltGrade} · ${r.rows.length} row(s) × ${nBolt} bolts${haunch>0?` · haunch ${haunch} mm`:''} · M = ${STATE.mcM} kNm`,
     r.code);
   html+=verdictHTML(r.govern.u,`Governing: ${r.govern.name}`);
   if(STATE.xferNote){ html+=`<div class="xfer-note">↳ ${STATE.xferNote}</div>`; }
   html+=gaugesHTML(r.utils.map(u=>({name:u.name,u:u.u})));
   // bolt-row table
-  let ct=`<div class="tbl-card"><h4>Bolt rows — elastic force distribution</h4><table class="ctab">
+  let ct=`<div class="tbl-card"><h4>Bolt rows — elastic force distribution (${nBolt} bolts/row)</h4><table class="ctab">
     <tr><th>Row</th><th>Lever h (mm)</th><th>Force F (kN)</th></tr>`;
   r.rows.forEach((row,i)=>{ ct+=`<tr><td>Row ${i+1}</td><td>${f0(row.y)}</td><td>${f1(row.F)}</td></tr>`; });
   ct+=`<tr class="gov"><td>MRd (potential)</td><td>—</td><td>${f1(r.MRd)} kNm</td></tr></table></div>`;
   html+=ct;
   html+=endPlateSVG(sec,STATE,r);
   html+=stepsHTML('Connection checks',r.steps);
-  html+=`<div class="notice"><b>Connection scope:</b> beam‑side extended end‑plate, elastic row distribution, 2 bolts/row. The column side (flange bending, web tension/compression, panel‑zone shear and stiffener/haunch requirements) and prying‑amplified bolt forces must be verified separately, ideally to the SCI green book (P398/P207).</div>`;
+  html+=`<div class="notice"><b>Connection scope:</b> beam‑side extended end‑plate, elastic row distribution, ${nBolt} bolts/row${haunch>0?', haunch increases lever arms (provide a haunch cutting from the same or heavier section, flange ≥ beam flange)':''}. The column side (flange bending, web tension/compression, panel‑zone shear and stiffener requirements) and prying‑amplified bolt forces must be verified separately, ideally to the SCI green book (P398/P207).</div>`;
   return html;
 }
 
@@ -2475,13 +2693,15 @@ function renderColumn(){
   const H=STATE.gHeight; if(H<=0) return '<div class="empty">Enter a height.</div>';
   const cant=STATE.gBase==='fixed';
   const wc=STATE.wcol;
-  const model=buildColumn({H},sec,{gP:STATE.gP,qP:STATE.qP,w1:wc,w2:0},cant);
+  const minor=(STATE.bendAxis==='minor');
+  const secAn=minor?{...sec,Iy:sec.Iz}:sec;  // wind bends about the selected axis
+  const model=buildColumn({H},secAn,{gP:STATE.gP,qP:STATE.qP,w1:wc,w2:0},cant);
   const an=analyseModel(model,STATE.code,codeE(),{hasW1:wc>0,hasW2:false,hasX:false});
   const lens={LEy:STATE.Kin*H,LEz:STATE.Kout*H,LLTtop:STATE.Kout*H,LLTbot:STATE.Kout*H};
   const rows=[];
   an.runs.filter(r=>r.combo.type==='ULS').forEach(r=>{
     const F=forcesOf(r.res.members,[0,1]);
-    const chk=checkMemberCombo(sec,F,lens);
+    const chk=checkMemberCombo(sec,F,lens,STATE.bendAxis);
     rows.push({run:r,name:r.combo.name,F,chk,u:chk.res.govern.u});
   });
   const gov=rows.reduce((a,b)=>b.u>a.u?b:a);
@@ -2496,8 +2716,8 @@ function renderColumn(){
   ct+='</table></div>';
   const gauges=gov.chk.res.utils.map(u=>({name:u.name,u:u.u}));
   sls.forEach(s=>gauges.push({name:`Sway ${s.label}`,u:s.u}));
-  let html=headHTML(`Column (${cant?'cantilever':'pinned‑pinned'}) — ${sec.name}`,
-    `h = ${H} m · G = ${STATE.gP} kN · Q = ${STATE.qP} kN · wind = ${wc} kN/m · LEy=${f2(lens.LEy)} m, LEz=${f2(lens.LEz)} m`,
+  let html=headHTML(`Column (${cant?'cantilever':'pinned‑pinned'})${minor?' — wind about MINOR axis':''} — ${sec.name}`,
+    `h = ${H} m · G = ${STATE.gP} kN · Q = ${STATE.qP} kN · wind = ${wc} kN/m${minor?' (bending about z‑z, checked vs Mcy)':''} · LEy=${f2(lens.LEy)} m, LEz=${f2(lens.LEz)} m`,
     gov.chk.res.code);
   html+=verdictHTML(uAll,`Governing: ${gov.name} → ${gov.chk.res.govern.name}`);
   html+=gaugesHTML(gauges);
@@ -2732,7 +2952,168 @@ function render(){
   }catch(err){ html='<div class="empty">Error: '+err.message+'</div>'; console.error(err); }
   html+=`<div class="foot">Khavs Steel Design — analysis by ${STATE.mode==='portal'?'plane‑frame matrix stiffness method (verified against closed‑form portal theory)':STATE.mode==='truss'?'equivalent‑depth truss method':'closed‑form / stiffness beam theory'}, member adequacy to ${STATE.code==='EC3'?'BS EN 1993‑1‑1 + UK NA':'BS 5950'}. Perry compressive/bending strengths are cross‑checked against published tables. Wind scenarios: W₁ pressure and W₂ uplift generate separate combination sets, including dead‑load‑relieving uplift (1.0G) reversal cases. This is a design aid — all results must be checked and approved by a competent structural engineer before use in construction.</div>`;
   sheet.innerHTML=html;
+  cloudAutoSave();
 }
+
+/* ==================== SUPABASE CLOUD SYNC ==================== */
+// Default project (publishable/anon key — safe for client-side; protected by RLS)
+const SB_DEFAULT_URL='https://xschfdgrlbgcouqaepsp.supabase.co';
+const SB_DEFAULT_KEY='sb_publishable_4aeaSsBVJU8f_F_0H0GpGg_2-CQU-bC';
+const CLOUD={url:'',key:'',connected:false,live:true};
+(function initCloud(){
+  try{
+    CLOUD.url=localStorage.getItem('khavs_sb_url')||SB_DEFAULT_URL;
+    CLOUD.key=localStorage.getItem('khavs_sb_key')||SB_DEFAULT_KEY;
+    const lv=localStorage.getItem('khavs_sb_live');
+    CLOUD.live=(lv===null)?true:(lv==='1');   // default ON
+    CLOUD.connected=false; // verified on connect
+  }catch(e){ CLOUD.url=SB_DEFAULT_URL; CLOUD.key=SB_DEFAULT_KEY; CLOUD.live=true; }
+})();
+// syncPill: state = 'ok' | 'saving' | 'err' | 'idle'
+function setPill(state,text){ const p=$('syncPill'); if(!p)return;
+  p.className='sync-pill'+(state==='ok'?' ok':state==='saving'?' saving':state==='err'?' err':'');
+  p.textContent=text; }
+function cloudStatus(msg,ok){
+  // legacy hidden holder (kept for any callers) + drive the toolbar pill
+  const el=$('cloudStatus'); if(el) el.textContent=msg;
+  if(ok===true) setPill('ok','✓ Synced');
+  else if(ok===false) setPill('err','⚠ Sync off');
+  else setPill('saving','⟳ …');
+}
+// Legacy anon keys are JWTs (eyJ...) and want Authorization: Bearer; new publishable keys
+// (sb_publishable_...) are sent as apikey only. cloudFetch tries the right shape with fallback.
+function cloudHeadersFull(){ return {'apikey':CLOUD.key,'Authorization':'Bearer '+CLOUD.key,'Content-Type':'application/json'}; }
+function cloudHeadersApikey(){ return {'apikey':CLOUD.key,'Content-Type':'application/json'}; }
+async function cloudFetch(path, opts={}){
+  const isJWT=CLOUD.key.startsWith('eyJ');
+  const primary=isJWT?cloudHeadersFull():cloudHeadersApikey();
+  const fallback=isJWT?cloudHeadersApikey():cloudHeadersFull();
+  let res=await fetch(`${CLOUD.url}/rest/v1/${path}`,{...opts,headers:{...primary,...(opts.headers||{})}});
+  if(res.status===401||res.status===403){
+    res=await fetch(`${CLOUD.url}/rest/v1/${path}`,{...opts,headers:{...fallback,...(opts.headers||{})}});
+  }
+  return res;
+}
+async function cloudConnect(){
+  CLOUD.url=($('sbUrl').value||'').trim().replace(/\/$/,'');
+  CLOUD.key=($('sbKey').value||'').trim();
+  if(!CLOUD.url||!CLOUD.key){ cloudStatus('Enter both URL and key.',false); return; }
+  cloudStatus('Connecting…');
+  try{
+    const res=await cloudFetch('khavs_designs?select=name&limit=1');
+    if(!res.ok){ const t=await res.text(); throw new Error(res.status+' '+t.slice(0,90)); }
+    CLOUD.connected=true;
+    localStorage.setItem('khavs_sb_url',CLOUD.url); localStorage.setItem('khavs_sb_key',CLOUD.key);
+    cloudStatus('✓ Connected to Supabase.',true);
+  }catch(e){ CLOUD.connected=false;
+    cloudStatus('Connect failed: '+e.message+' — check the khavs_designs table + RLS policy exist (see setup SQL).',false); }
+}
+async function cloudPush(silent,explicitName){
+  if(!CLOUD.connected){ if(!silent)cloudMenu(); return; }
+  const name=explicitName||(silent?(CLOUD._lastName||'Working design'):(CLOUD._lastName||'Working design'));
+  CLOUD._lastName=name;
+  setPill('saving','⟳ Saving…');
+  try{
+    const body=JSON.stringify([{name,data:STATE,updated_at:new Date().toISOString()}]);
+    const res=await cloudFetch('khavs_designs?on_conflict=name',
+      {method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body});
+    if(!res.ok){ throw new Error(res.status+' '+(await res.text()).slice(0,90)); }
+    setPill('ok','✓ Synced');
+  }catch(e){ setPill('err','⚠ Sync failed'); const el=$('cloudStatus'); if(el)el.textContent='Cloud save failed: '+e.message; }
+}
+/* ---- reusable button modal ---- */
+function showModal(cfg){
+  // cfg: {title, msg, inputs:[{id,label,value,type}], buttons:[{label,sub,primary,ghost,onClick(vals)}]}
+  $('modalTitle').textContent=cfg.title||'';
+  $('modalMsg').innerHTML=cfg.msg||''; $('modalMsg').style.display=cfg.msg?'block':'none';
+  const inpHost=$('modalInputs'); inpHost.innerHTML='';
+  (cfg.inputs||[]).forEach(inp=>{
+    if(inp.label){ const l=document.createElement('label'); l.className='modal-inp-label'; l.textContent=inp.label; inpHost.appendChild(l); }
+    const el=document.createElement('input'); el.className='modal-inp'; el.id='modalInp_'+inp.id;
+    el.type=inp.type||'text'; el.value=inp.value||''; if(inp.placeholder)el.placeholder=inp.placeholder;
+    inpHost.appendChild(el);
+  });
+  const btnHost=$('modalBtns'); btnHost.innerHTML='';
+  const getVals=()=>{ const v={}; (cfg.inputs||[]).forEach(inp=>v[inp.id]=($('modalInp_'+inp.id)||{}).value); return v; };
+  (cfg.buttons||[]).forEach(b=>{
+    const btn=document.createElement('button');
+    btn.className='modal-btn'+(b.primary?' primary':'')+(b.ghost?' ghost':'');
+    btn.innerHTML=b.sub?`${b.label}<small>${b.sub}</small>`:b.label;
+    btn.onclick=()=>{ if(!b.keepOpen)hideModal(); if(b.onClick)b.onClick(getVals()); };
+    btnHost.appendChild(btn);
+  });
+  $('modalOverlay').classList.add('show');
+}
+function hideModal(){ $('modalOverlay').classList.remove('show'); }
+if(typeof document!=='undefined'){ const mo=document.getElementById('modalOverlay');
+  if(mo) mo.addEventListener('click',e=>{ if(e.target===mo) hideModal(); }); }
+
+/* toolbar ☁ Cloud button — tappable menu */
+function cloudMenu(){
+  if(!CLOUD.connected){
+    showModal({title:'Cloud not connected',
+      msg:'Reconnect to your Supabase project, or enter details manually.',
+      buttons:[
+        {label:'Try to reconnect', primary:true, onClick:()=>cloudConnect()},
+        {label:'Enter Supabase details', onClick:()=>cloudReconfigure()},
+        {label:'Cancel', ghost:true}]});
+    return;
+  }
+  showModal({title:'Cloud projects',
+    msg:'Everything auto‑saves to the cloud. Use these to switch or branch projects.',
+    buttons:[
+      {label:'📂 Load a saved project', sub:'open another design from the cloud', primary:true, onClick:()=>cloudPull()},
+      {label:'✚ Save current as new project', sub:'branch this design under a new name', onClick:()=>cloudSaveAs()},
+      {label:'⚙ Settings', sub:'change Supabase URL / key', onClick:()=>cloudReconfigure()},
+      {label:'Cancel', ghost:true}]});
+}
+function cloudSaveAs(){
+  showModal({title:'Save as new project',
+    inputs:[{id:'name',label:'Project name',value:CLOUD._lastName||`${STATE.mode} — ${STATE.libSec||STATE.custShape}`}],
+    buttons:[
+      {label:'Save to cloud', primary:true, onClick:(v)=>{ if(v.name&&v.name.trim()){ CLOUD._lastName=v.name.trim(); cloudPush(false,v.name.trim()); } }},
+      {label:'Cancel', ghost:true}]});
+}
+async function cloudPull(){
+  if(!CLOUD.connected){ cloudMenu(); return; }
+  setPill('saving','⟳ …');
+  try{
+    const res=await cloudFetch('khavs_designs?select=name,updated_at&order=updated_at.desc');
+    if(!res.ok) throw new Error(res.status);
+    const list=await res.json();
+    setPill('ok','✓ Synced');
+    if(!list.length){ showModal({title:'No saved projects',
+      msg:'Nothing in the cloud yet. Keep working — it auto‑saves — then your project will appear here, or use “Save current as new project”.',
+      buttons:[{label:'OK', ghost:true}]}); return; }
+    const buttons=list.map(d=>({
+      label:d.name,
+      sub:new Date(d.updated_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}),
+      onClick:()=>cloudLoadOne(d.name)}));
+    buttons.push({label:'Cancel', ghost:true});
+    showModal({title:'Load a project', msg:`${list.length} saved project${list.length>1?'s':''}:`, buttons});
+  }catch(e){ setPill('err','⚠ Sync failed'); }
+}
+async function cloudLoadOne(name){
+  try{
+    setPill('saving','⟳ …');
+    const one=await cloudFetch(`khavs_designs?select=data&name=eq.${encodeURIComponent(name)}`);
+    const rows=await one.json();
+    if(rows[0]&&rows[0].data){ snapshot(); STATE=Object.assign(defaultState(),rows[0].data); CLOUD._lastName=name;
+      suppress=true; syncInputs(); suppress=false; render(); setPill('ok','✓ Synced'); }
+  }catch(e){ setPill('err','⚠ Sync failed'); }
+}
+function cloudReconfigure(){
+  showModal({title:'Supabase settings',
+    msg:'Publishable / anon keys are safe to store in the browser (protected by your RLS policy).',
+    inputs:[
+      {id:'url',label:'Project URL',value:CLOUD.url,placeholder:'https://xxxx.supabase.co'},
+      {id:'key',label:'Publishable / anon key',value:CLOUD.key}],
+    buttons:[
+      {label:'Connect', primary:true, onClick:(v)=>{ $('sbUrl').value=(v.url||'').trim(); $('sbKey').value=(v.key||'').trim(); cloudConnect(); }},
+      {label:'Cancel', ghost:true}]});
+}
+let cloudTimer=null;
+function cloudAutoSave(){ if(CLOUD.connected&&CLOUD.live){ clearTimeout(cloudTimer); setPill('saving','⟳ Saving…'); cloudTimer=setTimeout(()=>cloudPush(true),1200); } }
 
 /* ==================== SAVE / LOAD ==================== */
 function saveDesign(){
@@ -2755,6 +3136,10 @@ function loadDesign(){
 
 /* ==================== BOOT ==================== */
 initInputs(); syncInputs(); render(); updateHistBtns();
+// restore cloud config + auto-connect; pill starts as connecting
+if($('sbUrl')){ $('sbUrl').value=CLOUD.url; $('sbKey').value=CLOUD.key; $('sbLive').checked=CLOUD.live; }
+setPill('saving','⟳ Connecting…');
+if(CLOUD.url&&CLOUD.key){ cloudConnect(); } else { setPill('err','⚠ Not set up'); }
 
 </script>
 </body>
